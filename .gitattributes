@@ -1,0 +1,6 @@
+# keeps source files on lf across systems
+* text=auto eol=lf
+
+# keeps windows command files on crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf

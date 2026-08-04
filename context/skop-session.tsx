@@ -15,13 +15,16 @@ type SkopSessionValue = {
   resetStreak: () => void;
 };
 
+// creates one place for screens to read session data
 const SkopSessionContext = createContext<SkopSessionValue | null>(null);
 
 export function SkopSessionProvider({ children }: { children: ReactNode }) {
+  // these values will come from firebase later
   const [highScore, setHighScore] = useState(2564);
   const [urgesSkopped, setUrgesSkopped] = useState(12);
   const [streak, setStreak] = useState<Streak>({ years: 4, months: 7, days: 28 });
 
+  // only rebuilds the shared value when its data changes
   const value = useMemo(
     () => ({
       highScore,
@@ -37,6 +40,7 @@ export function SkopSessionProvider({ children }: { children: ReactNode }) {
   return <SkopSessionContext.Provider value={value}>{children}</SkopSessionContext.Provider>;
 }
 
+// gives screens a short way to use the session
 export function useSkopSession() {
   const value = useContext(SkopSessionContext);
 

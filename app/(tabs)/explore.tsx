@@ -4,6 +4,7 @@ import { AppHeader } from '@/components/skop/AppHeader';
 import { BottomNav } from '@/components/skop/BottomNav';
 import { SkopColors, SkopFonts, skopShadow } from '@/constants/skop-theme';
 
+// gives each day a value, pin height and colour
 const days = [
   { day: 'M', value: 5, height: 38, color: SkopColors.blue },
   { day: 'T', value: 4, height: 28, color: SkopColors.green },
@@ -20,6 +21,7 @@ export default function InsightsScreen() {
       <View style={styles.phone}>
         <AppHeader title="Learn the URGE" />
 
+        {/* maps the weekly urge data into chart columns */}
         <View style={styles.chartWrap}>
           <View style={styles.chart}>
             {days.map((item, index) => (
@@ -36,6 +38,7 @@ export default function InsightsScreen() {
           <Text style={styles.caption}>YOUR URGE HAS A SCHEDULE</Text>
         </View>
 
+        {/* marks insights as the active tab */}
         <BottomNav active="insights" />
       </View>
     </View>

@@ -18,9 +18,11 @@ const variantColor = {
 };
 
 export function SkopButton({ label, onPress, variant = 'surface', small }: SkopButtonProps) {
+  // filled buttons need text that works on dark colours
   const isFilled = variant === 'blue' || variant === 'green' || variant === 'pink';
 
   return (
+    // moves the button down while it is held
     <Pressable
       onPress={onPress}
       style={({ pressed }) => [

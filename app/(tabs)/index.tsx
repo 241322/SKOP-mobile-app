@@ -8,7 +8,10 @@ import { SkopColors, SkopFonts, skopShadow } from '@/constants/skop-theme';
 import { useSkopSession } from '@/context/skop-session';
 
 export default function HomeScreen() {
+  // reads the values shared by the session provider
   const { streak, urgesSkopped } = useSkopSession();
+
+  // turns the streak data into cards we can map over
   const streakCards = [
     { value: String(streak.years), label: 'years', color: SkopColors.pink },
     { value: String(streak.months), label: 'months', color: SkopColors.blue },
@@ -20,6 +23,7 @@ export default function HomeScreen() {
       <View style={styles.phone}>
         <AppHeader title="SKOP the URGE" />
 
+        {/* builds one card for each part of the streak */}
         <View style={styles.streakRow}>
           {streakCards.map((item) => (
             <View key={item.label} style={[styles.streakCard, { backgroundColor: item.color }]}>
@@ -33,6 +37,7 @@ export default function HomeScreen() {
         </View>
         <Text style={styles.caption}>Streak still standing</Text>
 
+        {/* starts the distraction game */}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Open urge distraction game"
@@ -45,6 +50,9 @@ export default function HomeScreen() {
           <Image source={require('../../assets/figma/home-urge-source.svg')} style={styles.urgeIcon} />
         </Pressable>
 
+
+
+        {/* shows the user's quit progress */}
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
             <Text adjustsFontSizeToFit minimumFontScale={0.72} numberOfLines={1} style={styles.statTitle}>
@@ -65,6 +73,7 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {/* marks home as the active tab */}
         <BottomNav active="home" />
       </View>
     </View>

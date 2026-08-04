@@ -9,8 +9,11 @@ import { useSkopSession } from '@/context/skop-session';
 
 export default function SettingsScreen() {
   const { resetStreak } = useSkopSession();
+
+  // controls whether the reset warning is open
   const [confirmingReset, setConfirmingReset] = useState(false);
 
+  // clears the streak and returns home
   const confirmReset = () => {
     resetStreak();
     setConfirmingReset(false);
@@ -28,6 +31,7 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.content}>
+        {/* these values will come from the user's quit plan */}
         <Text style={styles.sectionTitle}>YOUR QUIT PLAN</Text>
         <View style={styles.row}>
           <Text style={styles.rowLabel}>Daily spend</Text>
@@ -39,10 +43,12 @@ export default function SettingsScreen() {
         </View>
       </View>
 
+      {/* keeps the streak reset away from the main actions */}
       <Pressable accessibilityRole="button" onPress={() => setConfirmingReset(true)} style={styles.resetLink}>
         <Text style={styles.resetText}>I smoked since my quit date</Text>
       </Pressable>
 
+      {/* asks for confirmation before changing the streak */}
       {confirmingReset && (
         <View style={styles.overlay}>
           <View style={styles.dialog}>

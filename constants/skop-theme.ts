@@ -1,3 +1,6 @@
+import type { ViewStyle } from 'react-native';
+
+// keeps the brand colours in one place
 export const SkopColors = {
   background: '#fff3d6',
   surface: '#fbf6e9',
@@ -10,6 +13,7 @@ export const SkopColors = {
   muted: 'rgba(33, 23, 18, 0.55)',
 };
 
+// gives each font role one name
 export const SkopFonts = {
   body: 'BricolageGrotesque_400Regular',
   medium: 'BricolageGrotesque_600SemiBold',
@@ -18,7 +22,7 @@ export const SkopFonts = {
   scoreAlt: 'BitcountGridSingle_400Regular',
 };
 
+// gives buttons and cards the same hard shadow
 export const skopShadow: ViewStyle = {
   boxShadow: `0px 6px 0px 0px ${SkopColors.shadow}`,
 };
-import type { ViewStyle } from 'react-native';

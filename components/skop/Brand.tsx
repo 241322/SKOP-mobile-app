@@ -9,12 +9,14 @@ type BrandProps = {
 export function Brand({ compact }: BrandProps) {
   return (
     <View style={compact ? styles.compactWrap : styles.wrap}>
+      {/* each letter uses one skop brand colour */}
       <Text style={compact ? styles.compactTitle : styles.title}>
         <Text style={{ color: SkopColors.yellow }}>S</Text>
         <Text style={{ color: SkopColors.pink }}>K</Text>
         <Text style={{ color: SkopColors.blue }}>O</Text>
         <Text style={{ color: SkopColors.green }}>P</Text>
       </Text>
+      {/* the compact logo leaves out the tagline */}
       {!compact && <Text style={styles.tagline}>kick the urge</Text>}
     </View>
   );

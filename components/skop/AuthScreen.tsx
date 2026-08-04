@@ -11,6 +11,7 @@ type AuthScreenProps = {
 };
 
 export function AuthScreen({ mode }: AuthScreenProps) {
+  // changes the fields and labels for each auth route
   const isSignup = mode === 'signup';
 
   return (
@@ -18,6 +19,7 @@ export function AuthScreen({ mode }: AuthScreenProps) {
       <View style={styles.inner}>
         <Brand />
 
+        {/* holds the social buttons and account fields */}
         <View style={styles.form}>
           <View style={styles.socialRow}>
             <Pressable style={[styles.socialButton, styles.googleButton]}>
@@ -36,9 +38,11 @@ export function AuthScreen({ mode }: AuthScreenProps) {
 
           <Field label="EMAIL" placeholder="example@gmail.com" />
           <Field label="PASSWORD" placeholder="Create password here..." secure />
+          {/* signup needs the password entered twice */}
           {isSignup && <Field label="PASSWORD" placeholder="Re-enter password here..." secure />}
         </View>
 
+        {/* switches between the login and signup routes */}
         <View style={styles.actions}>
           <SkopButton label={isSignup ? 'CREATE ACCOUNT' : 'LOGIN'} variant="green" />
           <SkopButton
@@ -52,6 +56,7 @@ export function AuthScreen({ mode }: AuthScreenProps) {
   );
 }
 
+// keeps every text field using the same layout
 function Field({ label, placeholder, secure }: { label: string; placeholder: string; secure?: boolean }) {
   return (
     <View style={styles.fieldWrap}>
@@ -63,6 +68,7 @@ function Field({ label, placeholder, secure }: { label: string; placeholder: str
           secureTextEntry={secure}
           style={styles.input}
         />
+        {/* password fields show the eye icon */}
         {secure && <Ionicons name="eye-outline" size={24} color={SkopColors.ink} />}
       </View>
     </View>

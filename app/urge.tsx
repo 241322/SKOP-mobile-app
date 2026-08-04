@@ -42,6 +42,7 @@ type MovementSegment = {
   crashProgress?: number;
 };
 
+// controls the marker size, route shape and rest time
 const INITIAL_PLAYER = { x: 1, y: 4 };
 const MARKER_SCALE = 0.34;
 const ROUTE_BORDER_WIDTH = 3;
@@ -49,6 +50,7 @@ const ROUTE_RADIUS = 4;
 const ROUTE_SHADOW_Y = 4;
 const LEVEL_TRANSITION_MS = 5000;
 
+// rounds corners that sit on the outside of the route
 function routeCellRadii(cell: GridPoint, safeCells: Set<string>, radius = ROUTE_RADIUS) {
   const hasTop = safeCells.has(cellKey({ x: cell.x, y: cell.y - 1 }));
   const hasRight = safeCells.has(cellKey({ x: cell.x + 1, y: cell.y }));
@@ -63,6 +65,7 @@ function routeCellRadii(cell: GridPoint, safeCells: Set<string>, radius = ROUTE_
   };
 }
 
+// checks whether a point sits inside any route cell
 function routeContainsPoint(point: GridPoint, safeCells: Set<string>, padding: number) {
   const firstX = Math.ceil(point.x - 1 - padding);
   const lastX = Math.floor(point.x + padding);
@@ -78,6 +81,7 @@ function routeContainsPoint(point: GridPoint, safeCells: Set<string>, padding: n
   return false;
 }
 
+// samples the marker edges so it only crashes on contact
 function markerFitsRoute(position: GridPoint, safeCells: Set<string>, padding: number) {
   const markerStart = (1 - MARKER_SCALE) / 2;
   const markerEnd = markerStart + MARKER_SCALE;
@@ -94,6 +98,7 @@ function markerFitsRoute(position: GridPoint, safeCells: Set<string>, padding: n
   );
 }
 
+// finds the point where the marker reaches a wall
 function findWallContact(from: GridPoint, to: GridPoint, route: GameRoute, padding: number) {
   const positionAt = (progress: number) => ({
     x: from.x + (to.x - from.x) * progress,
@@ -116,6 +121,7 @@ function findWallContact(from: GridPoint, to: GridPoint, route: GameRoute, paddi
   return safeProgress;
 }
 
+// finds the score linked to the marker's route position
 function routeProgressAt(position: GridPoint, route: GameRoute, padding: number) {
   const directProgress = route.progressByCell.get(cellKey(position));
   if (directProgress !== undefined) return directProgress;
@@ -142,6 +148,8 @@ function routeProgressAt(position: GridPoint, route: GameRoute, padding: number)
 
 export default function UrgeGameScreen() {
   const { completeUrge, highScore, recordHighScore } = useSkopSession();
+
+  // state updates parts that must appear on screen
   const [phase, setPhase] = useState<GamePhase>('ready');
   const [route, setRoute] = useState<GameRoute>(() => generateRoute());
   const [playerPosition, setPlayerPosition] = useState<GridPoint>(INITIAL_PLAYER);
@@ -150,6 +158,8 @@ export default function UrgeGameScreen() {
   const [sessionSeconds, setSessionSeconds] = useState(0);
   const [transitionElapsedMs, setTransitionElapsedMs] = useState(0);
   const [boardSize, setBoardSize] = useState({ width: 760, height: 300 });
+
+  // refs hold game values without waiting for a render
   const sessionStartedAt = useRef(Date.now());
   const completedSession = useRef(false);
   const scoreRef = useRef(0);
@@ -163,6 +173,7 @@ export default function UrgeGameScreen() {
     progress: 0,
   });
 
+  // puts the marker back at the route entrance
   const resetMovement = useCallback(() => {
     directionRef.current = 'right';
     queuedDirectionRef.current = null;
@@ -174,6 +185,7 @@ export default function UrgeGameScreen() {
     setPlayerPosition(INITIAL_PLAYER);
   }, []);
 
+  // uses landscape for the game and restores portrait on exit
   useEffect(() => {
     ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE).catch(() => undefined);
     return () => {
@@ -181,6 +193,7 @@ export default function UrgeGameScreen() {
     };
   }, []);
 
+  // counts how long the user stays in the urge screen
   useEffect(() => {
     const timer = setInterval(() => {
       setSessionSeconds(Math.floor((Date.now() - sessionStartedAt.current) / 1000));
@@ -188,6 +201,7 @@ export default function UrgeGameScreen() {
     return () => clearInterval(timer);
   }, []);
 
+  // moves the marker and checks the route at the game frame rate
   useEffect(() => {
     if (phase !== 'playing' && phase !== 'transition') return;
 
@@ -201,6 +215,7 @@ export default function UrgeGameScreen() {
       let segment = segmentRef.current;
       let segmentProgress = segment.progress + elapsed / (phase === 'transition' ? 300 : stepDelay(level));
 
+      // stops at the contact point before opening the crash dialog
       const crashAtWall = () => {
         const crashProgress = segment.crashProgress ?? 1;
         segment.progress = crashProgress;
@@ -232,6 +247,7 @@ export default function UrgeGameScreen() {
         const arrived = segment.to;
         segmentProgress -= 1;
 
+        // turns route progress into score and level changes
         if (phase === 'playing') {
           const routePadding = routeWidthScale(level) - 1;
           const routeProgress = routeProgressAt(arrived, route, routePadding);
@@ -260,6 +276,8 @@ export default function UrgeGameScreen() {
         }
 
         const queuedDirection = queuedDirectionRef.current;
+
+        // checks the route and obstacles before each grid step
         const canMove = (candidate: Direction) => {
           const vector = directionVector[candidate];
           const candidatePoint = { x: arrived.x + vector.x, y: arrived.y + vector.y };
@@ -319,6 +337,7 @@ export default function UrgeGameScreen() {
     return () => clearInterval(timer);
   }, [level, phase, recordHighScore, resetMovement, route]);
 
+  // ends the five second rest and keeps the same route
   useEffect(() => {
     if (phase !== 'transition') return;
 
@@ -340,6 +359,7 @@ export default function UrgeGameScreen() {
     };
   }, [phase]);
 
+  // starts the game or queues the next turn
   const onSwipe = useCallback(
     (dx: number, dy: number) => {
       const nextDirection = directionFromSwipe(dx, dy);
@@ -355,6 +375,7 @@ export default function UrgeGameScreen() {
     [phase]
   );
 
+  // catches a swipe once it moves six pixels
   const panResponder = useMemo(
     () =>
       PanResponder.create({
@@ -386,6 +407,7 @@ export default function UrgeGameScreen() {
     [onSwipe, phase]
   );
 
+  // starts a new run with a new route
   const respawn = () => {
     const nextRoute = generateRoute();
     scoreRef.current = 0;
@@ -396,6 +418,7 @@ export default function UrgeGameScreen() {
     setPhase('ready');
   };
 
+  // records a completed urge after three minutes
   const finishSession = () => {
     recordHighScore(score);
     if (sessionSeconds >= 180 && !completedSession.current) {
@@ -405,16 +428,19 @@ export default function UrgeGameScreen() {
     router.replace('/');
   };
 
+  // asks how the user feels when they leave before three minutes
   const requestLeave = () => {
     if (sessionSeconds >= 180) finishSession();
     else setPhase('feeling');
   };
 
+  // stores the board size used to scale the grid
   const onBoardLayout = (event: LayoutChangeEvent) => {
     const { width, height } = event.nativeEvent.layout;
     setBoardSize({ width, height });
   };
 
+  // keeps the marker fixed while the route moves past it
   const cellSize = Math.min(boardSize.height / GRID_ROWS, boardSize.width / 22);
   const cameraX = boardSize.width * 0.27;
   const gridTop = (boardSize.height - GRID_ROWS * cellSize) / 2;
@@ -463,6 +489,7 @@ export default function UrgeGameScreen() {
           </View>
         </View>
 
+        {/* draws the route shadow before its outline and colour */}
         <View style={styles.board} onLayout={onBoardLayout} {...panResponder.panHandlers}>
           <Pressable
             accessibilityLabel="Leave urge session"
@@ -535,6 +562,7 @@ export default function UrgeGameScreen() {
               ]}
             />
           ))}
+          {/* keeps the marker at the camera point */}
           <View
             style={[
               styles.marker,
@@ -548,6 +576,7 @@ export default function UrgeGameScreen() {
             ]}
           />
 
+          {/* waits for a right swipe before movement starts */}
           {phase === 'ready' && (
             <View style={styles.startPrompt} pointerEvents="none">
               <Image source={require('../assets/figma/game-start-label.svg')} style={styles.startLabel} />
@@ -558,6 +587,7 @@ export default function UrgeGameScreen() {
             </View>
           )}
 
+          {/* shows level messages on the game board */}
           {phase === 'transition' && (
             <View style={styles.transitionMessage} pointerEvents="none">
               <Text style={styles.transitionEyebrow}>
@@ -577,6 +607,7 @@ export default function UrgeGameScreen() {
           )}
         </View>
 
+        {/* shows progress towards the next level */}
         <View style={styles.progressRail}>
           <View
             style={[
@@ -589,6 +620,7 @@ export default function UrgeGameScreen() {
           />
         </View>
 
+        {/* gives the user a new run or a way out */}
         {phase === 'crashed' && (
           <GameDialog title="ROUTE LOST" body={`Score ${score}`}>
             <DialogButton label="RESPAWN" colour={routeColour} onPress={respawn} />
@@ -596,6 +628,7 @@ export default function UrgeGameScreen() {
           </GameDialog>
         )}
 
+        {/* checks in when a short session ends */}
         {phase === 'feeling' && (
           <GameDialog title="HOW ARE YOU FEELING?" body="Choose what feels closest right now.">
             <DialogButton label="CALMER" colour={SkopColors.green} onPress={finishSession} />
@@ -608,6 +641,7 @@ export default function UrgeGameScreen() {
   );
 }
 
+// keeps each popup using the same frame
 function GameDialog({ children, title, body }: { children: React.ReactNode; title: string; body: string }) {
   return (
     <View style={styles.dialogBackdrop}>
@@ -620,6 +654,7 @@ function GameDialog({ children, title, body }: { children: React.ReactNode; titl
   );
 }
 
+// keeps each popup action using the same button
 function DialogButton({ label, colour, onPress }: { label: string; colour: string; onPress: () => void }) {
   return (
     <Pressable
@@ -631,6 +666,7 @@ function DialogButton({ label, colour, onPress }: { label: string; colour: strin
   );
 }
 
+// turns seconds into the timer shown in the header
 function formatTime(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;

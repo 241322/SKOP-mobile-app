@@ -10,16 +10,19 @@ type AppHeaderProps = {
 
 export function AppHeader({ title }: AppHeaderProps) {
   return (
-      <View style={styles.header}>
+    <View style={styles.header}>
+      {/* stacks the logo over its shadow image */}
       <View style={styles.logoWrap}>
         <Image source={require('../../assets/figma/home-logo-shadow.png')} style={styles.logoShadow} />
         <Image source={require('../../assets/figma/home-logo.png')} style={styles.logo} contentFit="cover" />
       </View>
+      {/* keeps the screen title and settings action together */}
       <View style={styles.titleRow}>
         <Text adjustsFontSizeToFit minimumFontScale={0.8} numberOfLines={1} style={styles.title}>
           {title}
         </Text>
         <View style={styles.divider} />
+        {/* opens settings without showing a stack header */}
         <Pressable
           accessibilityLabel="Open settings"
           hitSlop={10}

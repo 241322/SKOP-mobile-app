@@ -11,11 +11,13 @@ type BottomNavProps = {
 export function BottomNav({ active }: BottomNavProps) {
   return (
     <View style={styles.nav}>
+      {/* replace stops old tab visits filling the back history */}
       <SkopButton
         label="HOME"
         variant={active === 'home' ? 'yellow' : 'surface'}
         onPress={() => router.replace('/')}
       />
+      {/* the active route gets its brand colour */}
       <SkopButton
         label="INSIGHTS"
         variant={active === 'insights' ? 'blue' : 'surface'}

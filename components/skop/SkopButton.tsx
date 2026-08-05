@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import { Pressable, StyleSheet, Text } from 'react-native';
 
 import { SkopColors, SkopFonts, skopShadow } from '@/constants/skop-theme';
@@ -7,6 +8,8 @@ type SkopButtonProps = {
   onPress?: () => void;
   variant?: 'surface' | 'yellow' | 'blue' | 'green' | 'pink';
   small?: boolean;
+  compact?: boolean;
+  disabled?: boolean;
 };
 
 const variantColor = {
@@ -17,25 +20,38 @@ const variantColor = {
   pink: SkopColors.pink,
 };
 
-export function SkopButton({ label, onPress, variant = 'surface', small }: SkopButtonProps) {
+export function SkopButton({ label, onPress, variant = 'surface', small, compact, disabled }: SkopButtonProps) {
   // filled buttons need text that works on dark colours
   const isFilled = variant === 'blue' || variant === 'green' || variant === 'pink';
+
+  // every skop button gives the same light tap before running its action
+  const handlePress = () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onPress?.();
+  };
 
   return (
     // moves the button down while it is held
     <Pressable
-      onPress={onPress}
+      accessibilityRole="button"
+      disabled={disabled}
+      onPress={handlePress}
       style={({ pressed }) => [
         styles.button,
-        small ? styles.smallButton : styles.bigButton,
+        small ? styles.smallButton : compact ? styles.compactButton : styles.bigButton,
         { backgroundColor: variantColor[variant] },
         pressed && styles.pressed,
+        disabled && styles.disabled,
       ]}>
       <Text
         adjustsFontSizeToFit
         minimumFontScale={0.7}
         numberOfLines={1}
-        style={[styles.label, small ? styles.smallLabel : styles.bigLabel, isFilled && styles.lightLabel]}>
+        style={[
+          styles.label,
+          small ? styles.smallLabel : compact ? styles.compactLabel : styles.bigLabel,
+          isFilled && styles.lightLabel,
+        ]}>
         {label}
       </Text>
     </Pressable>
@@ -55,6 +71,10 @@ const styles = StyleSheet.create({
     height: 82,
     flex: 1,
   },
+  compactButton: {
+    height: 52,
+    flex: 1,
+  },
   smallButton: {
     height: 40,
     width: '100%',
@@ -63,6 +83,9 @@ const styles = StyleSheet.create({
     transform: [{ translateY: 3 }],
     boxShadow: `0px 3px 0px 0px ${SkopColors.shadow}`,
   },
+  disabled: {
+    opacity: 0.55,
+  },
   label: {
     fontFamily: SkopFonts.bold,
     color: SkopColors.ink,
@@ -70,6 +93,9 @@ const styles = StyleSheet.create({
   },
   bigLabel: {
     fontSize: 28,
+  },
+  compactLabel: {
+    fontSize: 20,
   },
   smallLabel: {
     fontSize: 14,

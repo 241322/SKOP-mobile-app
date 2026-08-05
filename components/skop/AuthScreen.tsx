@@ -1,10 +1,25 @@
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useState } from 'react';
+import {
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Brand } from '@/components/skop/Brand';
 import { SkopButton } from '@/components/skop/SkopButton';
-import { SkopColors, SkopFonts, skopShadow } from '@/constants/skop-theme';
+import { SkopColors, SkopFonts } from '@/constants/skop-theme';
+import { useAuth } from '@/context/auth';
+import { getAuthErrorMessage } from '@/lib/auth-error';
 
 type AuthScreenProps = {
   mode: 'signup' | 'login';
@@ -13,63 +28,198 @@ type AuthScreenProps = {
 export function AuthScreen({ mode }: AuthScreenProps) {
   // changes the fields and labels for each auth route
   const isSignup = mode === 'signup';
+  const { logIn, signUp } = useAuth();
+
+  // these values update as the user types into each field
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmedPassword, setConfirmedPassword] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  // auth uses columns on tablets and landscape screens
+  const { height, width } = useWindowDimensions();
+  const wideLayout = width >= 700 || width > height;
+  const compactBrand = height < 600;
+
+  // checks the form before sending the details to firebase
+  const submit = async () => {
+    const cleanEmail = email.trim();
+    setErrorMessage('');
+
+    if (!cleanEmail || !password) {
+      setErrorMessage('Enter your email and password.');
+      return;
+    }
+
+    if (isSignup && password.length < 6) {
+      setErrorMessage('Use a password with at least 6 characters.');
+      return;
+    }
+
+    if (isSignup && password !== confirmedPassword) {
+      setErrorMessage('The passwords do not match.');
+      return;
+    }
+
+    Keyboard.dismiss();
+    setSubmitting(true);
+
+    try {
+      if (isSignup) {
+        await signUp(cleanEmail, password);
+      } else {
+        await logIn(cleanEmail, password);
+      }
+    } catch (error) {
+      setErrorMessage(getAuthErrorMessage(error));
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
-    <View style={styles.screen}>
-      <View style={styles.inner}>
-        <Brand />
-
-        {/* holds the social buttons and account fields */}
-        <View style={styles.form}>
-          <View style={styles.socialRow}>
-            <Pressable style={[styles.socialButton, styles.googleButton]}>
-              <Text style={styles.googleIcon}>G</Text>
-              <Text adjustsFontSizeToFit minimumFontScale={0.7} numberOfLines={1} style={styles.socialText}>
-                GOOGLE
-              </Text>
-            </Pressable>
-            <Pressable style={[styles.socialButton, styles.facebookButton]}>
-              <Text style={styles.facebookIcon}>f</Text>
-              <Text adjustsFontSizeToFit minimumFontScale={0.7} numberOfLines={1} style={styles.socialText}>
-                FACEBOOK
-              </Text>
-            </Pressable>
+    <SafeAreaView style={styles.screen}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardArea}>
+        <ScrollView
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          style={styles.scroll}
+          contentContainerStyle={[styles.content, wideLayout && styles.wideContent]}>
+          <View style={styles.brandArea}>
+            <Brand compact={compactBrand} />
           </View>
 
-          <Field label="EMAIL" placeholder="example@gmail.com" />
-          <Field label="PASSWORD" placeholder="Create password here..." secure />
-          {/* signup needs the password entered twice */}
-          {isSignup && <Field label="PASSWORD" placeholder="Re-enter password here..." secure />}
-        </View>
+          <View style={[styles.formArea, wideLayout && styles.wideFormArea]}>
+            {/* holds the email and password fields */}
+            <View style={styles.form}>
+              <Field
+                autoComplete="email"
+                editable={!submitting}
+                keyboardType="email-address"
+                label="EMAIL"
+                onChangeText={setEmail}
+                placeholder="example@gmail.com"
+                textContentType="emailAddress"
+                value={email}
+              />
+              <Field
+                autoComplete={isSignup ? 'new-password' : 'current-password'}
+                editable={!submitting}
+                label="PASSWORD"
+                onChangeText={setPassword}
+                onSubmitEditing={isSignup ? undefined : submit}
+                placeholder={isSignup ? 'Create password here...' : 'Enter password here...'}
+                secure
+                textContentType={isSignup ? 'newPassword' : 'password'}
+                value={password}
+              />
+              {/* signup needs the password entered twice */}
+              {isSignup && (
+                <Field
+                  autoComplete="new-password"
+                  editable={!submitting}
+                  label="CONFIRM PASSWORD"
+                  onChangeText={setConfirmedPassword}
+                  onSubmitEditing={submit}
+                  placeholder="Re-enter password here..."
+                  secure
+                  textContentType="newPassword"
+                  value={confirmedPassword}
+                />
+              )}
+            </View>
 
-        {/* switches between the login and signup routes */}
-        <View style={styles.actions}>
-          <SkopButton label={isSignup ? 'CREATE ACCOUNT' : 'LOGIN'} variant="green" />
-          <SkopButton
-            label={isSignup ? 'Switch to LOGIN' : 'Switch to SIGN-UP'}
-            small
-            onPress={() => router.push(isSignup ? '/login' : '/signup')}
-          />
-        </View>
-      </View>
-    </View>
+            {!!errorMessage && (
+              <Text accessibilityLiveRegion="polite" style={styles.errorText}>
+                {errorMessage}
+              </Text>
+            )}
+
+            {/* switches between the login and signup routes */}
+            <View style={styles.actions}>
+              <SkopButton
+                disabled={submitting}
+                label={submitting ? 'PLEASE WAIT...' : isSignup ? 'CREATE ACCOUNT' : 'LOGIN'}
+                onPress={submit}
+                variant="green"
+              />
+              <SkopButton
+                disabled={submitting}
+                label={isSignup ? 'Switch to LOGIN' : 'Switch to SIGN-UP'}
+                small
+                onPress={() => router.replace(isSignup ? '/login' : '/signup')}
+              />
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 // keeps every text field using the same layout
-function Field({ label, placeholder, secure }: { label: string; placeholder: string; secure?: boolean }) {
+type FieldProps = {
+  label: string;
+  placeholder: string;
+  value: string;
+  onChangeText: (value: string) => void;
+  secure?: boolean;
+  editable?: boolean;
+  keyboardType?: 'default' | 'email-address';
+  autoComplete?: 'email' | 'current-password' | 'new-password';
+  textContentType?: 'emailAddress' | 'password' | 'newPassword';
+  onSubmitEditing?: () => void;
+};
+
+function Field({
+  label,
+  placeholder,
+  value,
+  onChangeText,
+  secure,
+  editable,
+  keyboardType,
+  autoComplete,
+  textContentType,
+  onSubmitEditing,
+}: FieldProps) {
+  // password fields can switch between hidden and visible text
+  const [showValue, setShowValue] = useState(false);
+
   return (
     <View style={styles.fieldWrap}>
       <Text style={styles.fieldLabel}>{label}</Text>
       <View style={styles.inputWrap}>
         <TextInput
+          autoCapitalize="none"
+          autoComplete={autoComplete}
+          autoCorrect={false}
+          editable={editable}
+          keyboardType={keyboardType}
+          onChangeText={onChangeText}
+          onSubmitEditing={onSubmitEditing}
           placeholder={placeholder}
           placeholderTextColor={SkopColors.muted}
-          secureTextEntry={secure}
+          returnKeyType={onSubmitEditing ? 'done' : 'next'}
+          secureTextEntry={secure && !showValue}
           style={styles.input}
+          textContentType={textContentType}
+          value={value}
         />
         {/* password fields show the eye icon */}
-        {secure && <Ionicons name="eye-outline" size={24} color={SkopColors.ink} />}
+        {secure && (
+          <Pressable
+            accessibilityLabel={showValue ? 'Hide password' : 'Show password'}
+            hitSlop={10}
+            onPress={() => setShowValue((current) => !current)}>
+            <Ionicons name={showValue ? 'eye-off-outline' : 'eye-outline'} size={24} color={SkopColors.ink} />
+          </Pressable>
+        )}
       </View>
     </View>
   );
@@ -79,57 +229,44 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: SkopColors.background,
-    alignItems: 'center',
   },
-  inner: {
+  keyboardArea: {
+    flex: 1,
+  },
+  scroll: {
+    flex: 1,
+  },
+  content: {
+    flexGrow: 1,
+    width: '100%',
+    maxWidth: 960,
+    alignSelf: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 40,
+    justifyContent: 'center',
+    gap: 36,
+  },
+  wideContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 56,
+  },
+  brandArea: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  formArea: {
     flex: 1,
     width: '100%',
-    maxWidth: 393,
-    paddingHorizontal: 24,
-    paddingTop: 88,
-    paddingBottom: 60,
-    justifyContent: 'space-between',
+    maxWidth: 440,
+    gap: 28,
+  },
+  wideFormArea: {
+    width: 'auto',
   },
   form: {
     gap: 22,
-  },
-  socialRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 18,
-  },
-  socialButton: {
-    height: 54,
-    flex: 1,
-    borderWidth: 2,
-    borderRadius: 20,
-    backgroundColor: SkopColors.surface,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    ...skopShadow,
-  },
-  googleButton: {
-    borderColor: SkopColors.ink,
-  },
-  facebookButton: {
-    borderColor: SkopColors.blue,
-  },
-  googleIcon: {
-    fontSize: 32,
-    fontFamily: SkopFonts.bold,
-    color: '#4285f4',
-  },
-  facebookIcon: {
-    fontSize: 36,
-    fontFamily: SkopFonts.bold,
-    color: SkopColors.blue,
-  },
-  socialText: {
-    fontSize: 20,
-    fontFamily: SkopFonts.bold,
-    color: SkopColors.ink,
   },
   fieldWrap: {
     gap: 6,
@@ -155,7 +292,14 @@ const styles = StyleSheet.create({
     fontFamily: SkopFonts.body,
     color: SkopColors.ink,
   },
+  errorText: {
+    color: '#b42318',
+    fontSize: 14,
+    fontFamily: SkopFonts.medium,
+    textAlign: 'center',
+  },
   actions: {
     gap: 20,
+    height: 142,
   },
 });

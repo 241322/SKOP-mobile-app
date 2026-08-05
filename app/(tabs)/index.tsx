@@ -1,6 +1,8 @@
 import { Href, router } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/skop/AppHeader';
 import { BottomNav } from '@/components/skop/BottomNav';
@@ -9,7 +11,7 @@ import { useSkopSession } from '@/context/skop-session';
 
 export default function HomeScreen() {
   // reads the values shared by the session provider
-  const { streak, urgesSkopped } = useSkopSession();
+  const { lastSessionAt, moneySaved, skopSessionCount, streak } = useSkopSession();
 
   // turns the streak data into cards we can map over
   const streakCards = [
@@ -18,66 +20,109 @@ export default function HomeScreen() {
     { value: String(streak.days), label: 'days', color: SkopColors.green },
   ];
 
+  // wide screens place the streak and actions beside each other
+  const { height, width } = useWindowDimensions();
+  const wideLayout = width >= 700 || width > height;
+  const compact = height < 600;
+
   return (
-    <View style={styles.screen}>
-      <View style={styles.phone}>
+    <SafeAreaView style={styles.screen}>
+      <View style={[styles.page, wideLayout && styles.widePage]}>
         <AppHeader title="SKOP the URGE" />
 
-        {/* builds one card for each part of the streak */}
-        <View style={styles.streakRow}>
-          {streakCards.map((item) => (
-            <View key={item.label} style={[styles.streakCard, { backgroundColor: item.color }]}>
-              <Text style={styles.streakValue}>{item.value}</Text>
-              <View style={styles.streakDivider} />
-              <Text adjustsFontSizeToFit minimumFontScale={0.75} numberOfLines={1} style={styles.streakLabel}>
-                {item.label}
-              </Text>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[styles.content, wideLayout && styles.wideContent]}>
+          <View style={[styles.streakSection, wideLayout && styles.wideStreakSection]}>
+            {/* builds one card for each part of the streak */}
+            <View style={styles.streakRow}>
+              {streakCards.map((item) => (
+                <View
+                  key={item.label}
+                  style={[
+                    styles.streakCard,
+                    compact && styles.compactStreakCard,
+                    { backgroundColor: item.color },
+                  ]}>
+                  <Text style={[styles.streakValue, compact && styles.compactStreakValue]}>{item.value}</Text>
+                  <View style={[styles.streakDivider, compact && styles.compactStreakDivider]} />
+                  <Text
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.75}
+                    numberOfLines={1}
+                    style={[styles.streakLabel, compact && styles.compactStreakLabel]}>
+                    {item.label}
+                  </Text>
+                </View>
+              ))}
             </View>
-          ))}
-        </View>
-        <Text style={styles.caption}>Streak still standing</Text>
-
-        {/* starts the distraction game */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Open urge distraction game"
-          onPress={() => router.push('/urge' as Href)}
-          style={({ pressed }) => [styles.urgeButton, pressed && styles.urgeButtonPressed]}>
-          <Image source={require('../../assets/figma/home-urge-source.svg')} style={styles.urgeIcon} />
-          <Text adjustsFontSizeToFit minimumFontScale={0.8} numberOfLines={1} style={styles.urgeText}>
-            I HAVE AN URGE
-          </Text>
-          <Image source={require('../../assets/figma/home-urge-source.svg')} style={styles.urgeIcon} />
-        </Pressable>
-
-
-
-        {/* shows the user's quit progress */}
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text adjustsFontSizeToFit minimumFontScale={0.72} numberOfLines={1} style={styles.statTitle}>
-              MONEY SAVED
-            </Text>
-            <Image source={require('../../assets/figma/home-money-source.svg')} style={styles.moneyIcon} />
-            <Text adjustsFontSizeToFit minimumFontScale={0.75} numberOfLines={1} style={styles.money}>
-              <Text style={styles.moneyPrefix}>R</Text>12 628
-            </Text>
-            <Text style={styles.statNote}>*This is an estimate*</Text>
+            <Text style={styles.caption}>Streak still standing</Text>
           </View>
-          <View style={styles.statCard}>
-            <Text adjustsFontSizeToFit minimumFontScale={0.72} numberOfLines={1} style={styles.statTitle}>
-              URGES SKOPPED
-            </Text>
-            <Text style={styles.urgeCount}>{urgesSkopped}</Text>
-            <Text style={styles.statNote}>Last urge - 24 days ago</Text>
+
+          <View style={[styles.actionSection, wideLayout && styles.wideActionSection]}>
+            {/* starts the distraction game */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Open urge distraction game"
+              onPress={() => {
+                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push('/urge' as Href);
+              }}
+              style={({ pressed }) => [styles.urgeButton, pressed && styles.urgeButtonPressed]}>
+              <Image source={require('../../assets/figma/home-urge-source.svg')} style={styles.urgeIcon} />
+              <Text adjustsFontSizeToFit minimumFontScale={0.8} numberOfLines={1} style={styles.urgeText}>
+                I HAVE AN URGE
+              </Text>
+              <Image source={require('../../assets/figma/home-urge-source.svg')} style={styles.urgeIcon} />
+            </Pressable>
+
+            {/* shows the user's quit progress */}
+            <View style={styles.statsRow}>
+              <View style={styles.statCard}>
+                <Text adjustsFontSizeToFit minimumFontScale={0.72} numberOfLines={1} style={styles.statTitle}>
+                  MONEY SAVED
+                </Text>
+                <Image source={require('../../assets/figma/home-money-source.svg')} style={styles.moneyIcon} />
+                <Text adjustsFontSizeToFit minimumFontScale={0.75} numberOfLines={1} style={styles.money}>
+                  <Text style={styles.moneyPrefix}>R</Text>
+                  {formatMoney(moneySaved)}
+                </Text>
+                <Text style={styles.statNote}>*This is an estimate*</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text adjustsFontSizeToFit minimumFontScale={0.72} numberOfLines={1} style={styles.statTitle}>
+                  SKOP SESSIONS
+                </Text>
+                <Text style={styles.urgeCount}>{skopSessionCount}</Text>
+                <Text style={styles.statNote}>{formatLastSession(lastSessionAt)}</Text>
+              </View>
+            </View>
           </View>
-        </View>
+        </ScrollView>
 
         {/* marks home as the active tab */}
         <BottomNav active="home" />
       </View>
-    </View>
+    </SafeAreaView>
   );
+}
+
+function formatMoney(amount: number) {
+  return String(amount).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+
+function formatLastSession(lastSessionAt: string | null) {
+  if (!lastSessionAt) return 'No sessions yet';
+
+  const sessionDate = new Date(lastSessionAt);
+  const today = new Date();
+  const sessionDay = new Date(sessionDate.getFullYear(), sessionDate.getMonth(), sessionDate.getDate());
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const daysAgo = Math.max(0, Math.round((todayStart.getTime() - sessionDay.getTime()) / 86400000));
+
+  if (daysAgo === 0) return 'Last session: Today';
+  if (daysAgo === 1) return 'Last session: Yesterday';
+  return `Last session: ${daysAgo} days ago`;
 }
 
 const styles = StyleSheet.create({
@@ -86,20 +131,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: SkopColors.background,
   },
-  phone: {
+  page: {
     flex: 1,
     width: '100%',
-    maxWidth: 393,
+    maxWidth: 480,
+    alignSelf: 'center',
     backgroundColor: SkopColors.background,
   },
-  streakRow: {
-    marginTop: 46,
-    paddingHorizontal: 28,
+  widePage: {
+    maxWidth: 960,
+  },
+  content: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 28,
+  },
+  wideContent: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 40,
+  },
+  streakSection: {
+    width: '100%',
+    maxWidth: 430,
+    alignSelf: 'center',
+  },
+  wideStreakSection: {
+    flex: 1,
+    width: 'auto',
+  },
+  streakRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 16,
   },
   streakCard: {
-    width: 92,
+    flex: 1,
+    minWidth: 0,
+    maxWidth: 120,
     height: 150,
     borderWidth: 2,
     borderColor: SkopColors.ink,
@@ -110,11 +180,19 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     ...skopShadow,
   },
+  compactStreakCard: {
+    height: 118,
+    paddingVertical: 12,
+  },
   streakValue: {
     fontSize: 46,
     lineHeight: 48,
     fontFamily: SkopFonts.bold,
     color: SkopColors.surface,
+  },
+  compactStreakValue: {
+    fontSize: 36,
+    lineHeight: 38,
   },
   streakDivider: {
     position: 'absolute',
@@ -124,10 +202,18 @@ const styles = StyleSheet.create({
     height: 2,
     backgroundColor: SkopColors.ink,
   },
+  compactStreakDivider: {
+    top: 57,
+  },
   streakLabel: {
-    fontSize: 23,
+    fontSize: 20,
+    letterSpacing: 0,
     fontFamily: SkopFonts.bold,
     color: SkopColors.ink,
+    // letterSpacing: 0.9,
+  },
+  compactStreakLabel: {
+    fontSize: 17,
   },
   caption: {
     marginTop: 16,
@@ -136,9 +222,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: SkopFonts.medium,
   },
+  actionSection: {
+    width: '100%',
+    maxWidth: 460,
+    alignSelf: 'center',
+    marginTop: 40,
+  },
+  wideActionSection: {
+    flex: 1,
+    width: 'auto',
+    marginTop: 0,
+  },
   urgeButton: {
-    marginTop: 42,
-    marginHorizontal: 24,
     height: 53,
     borderRadius: 20,
     borderWidth: 2,
@@ -164,8 +259,7 @@ const styles = StyleSheet.create({
     height: 22,
   },
   statsRow: {
-    marginTop: 52,
-    paddingHorizontal: 24,
+    marginTop: 32,
     flexDirection: 'row',
     gap: 24,
   },

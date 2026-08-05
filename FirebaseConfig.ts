@@ -1,4 +1,4 @@
-import { createAsyncStorage } from '@react-native-async-storage/async-storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { initializeApp } from 'firebase/app';
 import * as FirebaseAuth from 'firebase/auth';
 import type { Persistence } from 'firebase/auth';
@@ -15,19 +15,16 @@ const firebaseConfig = {
   appId: "1:331039984772:web:9f87b4ac7527a59a8c86d1"
 };
 
-// gives firebase auth its own storage on the phone
-const authStorage = createAsyncStorage('skop-auth');
-
 // adds the native export missing from firebase's shared type file
 const nativeAuth = FirebaseAuth as typeof FirebaseAuth & {
-  getReactNativePersistence: (storage: typeof authStorage) => Persistence;
+  getReactNativePersistence: (storage: typeof AsyncStorage) => Persistence;
 };
 
 // uses phone storage in expo go and browser storage on web
 const authPersistence =
   Platform.OS === 'web'
     ? FirebaseAuth.browserLocalPersistence
-    : nativeAuth.getReactNativePersistence(authStorage);
+    : nativeAuth.getReactNativePersistence(AsyncStorage);
 
 // starts each firebase service once
 export const app = initializeApp(firebaseConfig);

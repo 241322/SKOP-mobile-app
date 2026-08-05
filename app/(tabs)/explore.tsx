@@ -1,48 +1,113 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader } from '@/components/skop/AppHeader';
 import { BottomNav } from '@/components/skop/BottomNav';
 import { SkopColors, SkopFonts, skopShadow } from '@/constants/skop-theme';
+import { type SkopSessionRecord, useSkopSession } from '@/context/skop-session';
 
-// gives each day a value, pin height and colour
-const days = [
-  { day: 'M', value: 5, height: 38, color: SkopColors.blue },
-  { day: 'T', value: 4, height: 28, color: SkopColors.green },
-  { day: 'W', value: 3, height: 20, color: SkopColors.pink },
-  { day: 'T', value: 2, height: 16, color: SkopColors.blue },
-  { day: 'F', value: 5, height: 38, color: SkopColors.green },
-  { day: 'S', value: 8, height: 62, color: SkopColors.pink },
-  { day: 'S', value: 6, height: 45, color: SkopColors.blue },
+const weekdayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+const weekdayColours = [
+  SkopColors.blue,
+  SkopColors.green,
+  SkopColors.pink,
+  SkopColors.blue,
+  SkopColors.green,
+  SkopColors.pink,
+  SkopColors.blue,
 ];
 
 export default function InsightsScreen() {
+  const { averageSessionSeconds, sessions, skopSessionCount, totalSessionSeconds } = useSkopSession();
+  const { height, width } = useWindowDimensions();
+  const wideLayout = width >= 700 || width > height;
+  const longestSessionSeconds = sessions.reduce(
+    (longest, session) => Math.max(longest, session.durationSeconds),
+    0
+  );
+  const days = buildWeekdayData(sessions);
+  const summary = [
+    { label: 'SKOP SESSIONS', value: String(skopSessionCount), colour: SkopColors.yellow },
+    { label: 'TIME IN SKOP', value: formatDuration(totalSessionSeconds), colour: SkopColors.green },
+    { label: 'AVERAGE SESSION', value: formatDuration(averageSessionSeconds), colour: SkopColors.blue },
+    { label: 'LONGEST SESSION', value: formatDuration(longestSessionSeconds), colour: SkopColors.pink },
+  ];
+
   return (
-    <View style={styles.screen}>
-      <View style={styles.phone}>
+    <SafeAreaView style={styles.screen}>
+      <View style={styles.page}>
         <AppHeader title="Learn the URGE" />
 
-        {/* maps the weekly urge data into chart columns */}
-        <View style={styles.chartWrap}>
-          <View style={styles.chart}>
-            {days.map((item, index) => (
-              <View key={`${item.day}-${index}`} style={styles.dayCard}>
-                <Text style={styles.value}>{item.value}</Text>
-                <View style={styles.pinWrap}>
-                  <View style={[styles.pinLine, { height: item.height }]} />
-                  <View style={styles.pinHead} />
-                </View>
-                <Text style={[styles.day, { color: item.color }]}>{item.day}</Text>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+          {/* these cards only use sessions recorded after the game starts */}
+          <View style={styles.summaryGrid}>
+            {summary.map((item) => (
+              <View
+                key={item.label}
+                style={[
+                  styles.summaryCard,
+                  { backgroundColor: item.colour, width: wideLayout ? '23%' : '47%' },
+                ]}>
+                <Text adjustsFontSizeToFit minimumFontScale={0.7} numberOfLines={1} style={styles.summaryLabel}>
+                  {item.label}
+                </Text>
+                <Text adjustsFontSizeToFit minimumFontScale={0.65} numberOfLines={1} style={styles.summaryValue}>
+                  {item.value}
+                </Text>
               </View>
             ))}
           </View>
-          <Text style={styles.caption}>YOUR URGE HAS A SCHEDULE</Text>
-        </View>
+
+          {/* groups session start times by weekday */}
+          <View style={styles.chartWrap}>
+            <Text style={styles.sectionTitle}>SESSIONS BY DAY</Text>
+            <View style={styles.chart}>
+              {days.map((item, index) => (
+                <View key={`${item.day}-${index}`} style={styles.dayCard}>
+                  <Text style={styles.value}>{item.value}</Text>
+                  <View style={styles.pinWrap}>
+                    <View style={[styles.pinLine, { height: item.height }]} />
+                    <View style={[styles.pinHead, { bottom: Math.max(0, item.height - 6) }]} />
+                  </View>
+                  <Text style={[styles.day, { color: item.color }]}>{item.day}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        </ScrollView>
 
         {/* marks insights as the active tab */}
         <BottomNav active="insights" />
       </View>
-    </View>
+    </SafeAreaView>
   );
+}
+
+function buildWeekdayData(sessions: SkopSessionRecord[]) {
+  const counts = Array(7).fill(0) as number[];
+
+  sessions.forEach((session) => {
+    const sundayFirstIndex = new Date(session.startedAt).getDay();
+    const mondayFirstIndex = (sundayFirstIndex + 6) % 7;
+    counts[mondayFirstIndex] += 1;
+  });
+
+  const largestCount = Math.max(1, ...counts);
+  return weekdayLabels.map((day, index) => ({
+    day,
+    value: counts[index],
+    height: counts[index] === 0 ? 4 : Math.round(14 + (counts[index] / largestCount) * 48),
+    color: weekdayColours[index],
+  }));
+}
+
+function formatDuration(totalSeconds: number) {
+  if (totalSeconds < 60) return `${totalSeconds}s`;
+
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  if (hours === 0) return `${minutes}m`;
+  return minutes === 0 ? `${hours}h` : `${hours}h ${minutes}m`;
 }
 
 const styles = StyleSheet.create({
@@ -51,46 +116,94 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: SkopColors.background,
   },
-  phone: {
+  page: {
     flex: 1,
     width: '100%',
-    maxWidth: 393,
+    maxWidth: 960,
+    alignSelf: 'center',
     backgroundColor: SkopColors.background,
   },
+  content: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: 28,
+    paddingBottom: 36,
+    gap: 40,
+  },
+  summaryGrid: {
+    width: '100%',
+    maxWidth: 760,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 14,
+  },
+  summaryCard: {
+    minWidth: 145,
+    height: 112,
+    borderWidth: 2,
+    borderColor: SkopColors.ink,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    justifyContent: 'space-between',
+    ...skopShadow,
+  },
+  summaryLabel: {
+    color: SkopColors.ink,
+    fontFamily: SkopFonts.bold,
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  summaryValue: {
+    color: SkopColors.ink,
+    fontFamily: SkopFonts.bold,
+    fontSize: 28,
+    textAlign: 'center',
+  },
   chartWrap: {
-    marginTop: 56,
-    marginHorizontal: 24,
+    width: '100%',
+    maxWidth: 760,
+    alignSelf: 'center',
     alignItems: 'center',
-    gap: 12,
+    gap: 14,
+  },
+  sectionTitle: {
+    color: SkopColors.ink,
+    fontFamily: SkopFonts.bold,
+    fontSize: 22,
   },
   chart: {
     width: '100%',
     height: 140,
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    gap: 10,
   },
   dayCard: {
-    width: 36,
+    flex: 1,
+    minWidth: 0,
+    maxWidth: 72,
     height: 140,
-    borderRadius: 10,
+    borderRadius: 8,
     borderWidth: 2,
     borderColor: SkopColors.ink,
     backgroundColor: SkopColors.surface,
     alignItems: 'center',
     justifyContent: 'flex-end',
     padding: 8,
-    ...skopShadow,
-    boxShadow: `0px 2px 0px 0px ${SkopColors.shadow}`,
+    boxShadow: `0px 4px 0px 0px ${SkopColors.shadow}`,
   },
   value: {
     position: 'absolute',
-    top: 1,
+    top: 3,
     fontSize: 20,
     fontFamily: SkopFonts.bold,
     color: SkopColors.ink,
   },
   pinWrap: {
-    height: 74,
+    height: 68,
     width: 12,
     alignItems: 'center',
     justifyContent: 'flex-end',
@@ -104,7 +217,6 @@ const styles = StyleSheet.create({
   },
   pinHead: {
     position: 'absolute',
-    bottom: 34,
     width: 12,
     height: 12,
     borderRadius: 6,
@@ -120,10 +232,5 @@ const styles = StyleSheet.create({
     textShadowColor: SkopColors.ink,
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 0,
-  },
-  caption: {
-    fontSize: 12,
-    fontFamily: SkopFonts.body,
-    color: SkopColors.ink,
   },
 });

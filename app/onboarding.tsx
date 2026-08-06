@@ -1,10 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
-  Modal,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
   Platform,
   Pressable,
   ScrollView,
@@ -14,80 +12,115 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRef, useState } from 'react';
 
 import { Brand } from '@/components/skop/Brand';
 import { SkopButton } from '@/components/skop/SkopButton';
 import { SkopColors, SkopFonts, skopShadow } from '@/constants/skop-theme';
-import { type SpendPeriod, useSkopSession } from '@/context/skop-session';
+import {
+  type CheckInCadence,
+  type ProductType,
+  type QuitJourney,
+  type ReminderTime,
+  type SpendPeriod,
+  useSkopSession,
+} from '@/context/skop-session';
 
+const products: { label: string; body: string; value: ProductType }[] = [
+  { label: 'CIGARETTES', body: 'Support for stopping smoking.', value: 'cigarettes' },
+  { label: 'VAPING', body: 'Support for stopping vaping.', value: 'vaping' },
+  { label: 'BOTH', body: 'One plan for smoking and vaping.', value: 'both' },
+];
+const journeys: { label: string; body: string; value: QuitJourney }[] = [
+  { label: "I'VE ALREADY QUIT", body: 'Bring your current progress into SKOP.', value: 'already_quit' },
+  { label: 'CUT DOWN FIRST', body: 'Track spending while working towards a quit date.', value: 'cut_down' },
+  { label: "I'M READY TO QUIT", body: 'Stop today or choose a date ahead.', value: 'ready_to_quit' },
+];
 const spendPeriods: { label: string; value: SpendPeriod }[] = [
   { label: 'DAILY', value: 'daily' },
   { label: 'WEEKLY', value: 'weekly' },
   { label: 'MONTHLY', value: 'monthly' },
 ];
-
-const dayOptions = Array.from({ length: 31 }, (_, index) => String(index + 1));
-const monthOptions = Array.from({ length: 12 }, (_, index) => String(index + 1));
-const yearOptions = Array.from({ length: new Date().getFullYear() - 1899 }, (_, index) =>
-  String(new Date().getFullYear() - index)
-);
+const cadences: { label: string; value: CheckInCadence }[] = [
+  { label: 'DAILY', value: 'daily' },
+  { label: 'WEEKLY', value: 'weekly' },
+  { label: 'MONTHLY', value: 'monthly' },
+];
 
 export default function OnboardingScreen() {
   const { completeOnboarding } = useSkopSession();
   const today = new Date();
-
-  // the two steps share these values while the user moves between them
-  const [step, setStep] = useState<1 | 2>(1);
-  const [day, setDay] = useState(String(today.getDate()));
-  const [month, setMonth] = useState(String(today.getMonth() + 1));
-  const [year, setYear] = useState(String(today.getFullYear()));
+  const [step, setStep] = useState(1);
+  const [productType, setProductType] = useState<ProductType>('vaping');
+  const [journey, setJourney] = useState<QuitJourney>('already_quit');
+  const [dateValue, setDateValue] = useState(dateToInputValue(today));
   const [spendPeriod, setSpendPeriod] = useState<SpendPeriod>('daily');
   const [spendAmount, setSpendAmount] = useState('');
+  const [checkInCadence, setCheckInCadence] = useState<CheckInCadence>('weekly');
+  const [remindersEnabled, setRemindersEnabled] = useState(false);
+  const [reminderTime, setReminderTime] = useState<ReminderTime>('evening');
   const [errorMessage, setErrorMessage] = useState('');
   const [saving, setSaving] = useState(false);
+  const totalSteps = journey === 'cut_down' ? 5 : 4;
 
-  // step one checks that the date exists and is not in the future
-  const continueToSpend = () => {
+  const date = useMemo(() => inputValueToDate(dateValue), [dateValue]);
+
+  const moveNext = () => {
     setErrorMessage('');
-    const quitDate = parseDate(day, month, year);
-
-    if (!quitDate) {
-      setErrorMessage('Enter a valid quit date.');
-      return;
+    if (step === 3) {
+      const dateError = validateJourneyDate(journey, date);
+      if (dateError) {
+        setErrorMessage(dateError);
+        return;
+      }
     }
-
-    if (quitDate > startOfDay(new Date())) {
-      setErrorMessage('Your quit date cannot be in the future.');
-      return;
+    if (step === 4) {
+      const amount = Number(spendAmount.replace(',', '.'));
+      if (!Number.isFinite(amount) || amount <= 0) {
+        setErrorMessage('Enter a spend amount above R0.');
+        return;
+      }
+      if (journey !== 'cut_down') {
+        void finishOnboarding();
+        return;
+      }
     }
-
-    setStep(2);
+    setStep((current) => Math.min(totalSteps, current + 1));
   };
 
-  // the saved shape matches the fields that will move into firestore
   const finishOnboarding = async () => {
     const amount = Number(spendAmount.replace(',', '.'));
-    const quitDate = parseDate(day, month, year);
-    setErrorMessage('');
-
-    if (!quitDate) {
-      setStep(1);
-      setErrorMessage('Enter a valid quit date.');
+    const dateError = validateJourneyDate(journey, date);
+    if (dateError) {
+      setStep(3);
+      setErrorMessage(dateError);
       return;
     }
-
     if (!Number.isFinite(amount) || amount <= 0) {
+      setStep(4);
       setErrorMessage('Enter a spend amount above R0.');
       return;
     }
 
+    const quittingNow =
+      journey === 'ready_to_quit' && startOfDay(date).getTime() === startOfDay(new Date()).getTime();
+    const alreadyQuit = journey === 'already_quit' || quittingNow;
     setSaving(true);
+    setErrorMessage('');
+
     try {
       await completeOnboarding({
-        quitDate: dateToInputValue(quitDate),
+        profileVersion: 2,
+        productType,
+        journey,
+        status: alreadyQuit ? 'quit' : journey === 'cut_down' ? 'reducing' : 'scheduled',
+        quitDate: alreadyQuit ? dateValue : null,
+        targetQuitDate: alreadyQuit ? null : dateValue,
         spendPeriod,
         spendAmount: Math.round(amount * 100) / 100,
+        checkInCadence: journey === 'cut_down' ? checkInCadence : null,
+        remindersEnabled: journey === 'cut_down' ? remindersEnabled : false,
+        reminderTime: journey === 'cut_down' && remindersEnabled ? reminderTime : null,
+        ageConfirmedAt: new Date().toISOString(),
       });
     } catch {
       setErrorMessage('Your setup could not be saved. Please try again.');
@@ -99,84 +132,68 @@ export default function OnboardingScreen() {
     <SafeAreaView style={styles.screen}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardArea}>
         <ScrollView
-          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.content}>
           <View style={styles.topRow}>
             <Brand compact />
             <View style={styles.stepBlock}>
-              <Text style={styles.stepText}>{step} OF 2</Text>
+              <Text style={styles.stepText}>{step} OF {totalSteps}</Text>
               <View style={styles.progressRail}>
-                <View style={[styles.progressFill, { width: step === 1 ? '50%' : '100%' }]} />
+                <View style={[styles.progressFill, { width: `${(step / totalSteps) * 100}%` }]} />
               </View>
             </View>
           </View>
 
           <View style={styles.form}>
-            {step === 1 ? (
+            {step === 1 && (
+              <ChoiceStep
+                body="Your support will match what you use."
+                options={products}
+                selected={productType}
+                title="WHAT DO YOU WANT TO SKOP?"
+                onSelect={setProductType}
+              />
+            )}
+            {step === 2 && (
+              <ChoiceStep
+                body="Choose the starting point that fits you."
+                options={journeys}
+                selected={journey}
+                title="WHERE ARE YOU STARTING?"
+                onSelect={(value) => {
+                  setJourney(value);
+                  if (value === 'already_quit') setDateValue(dateToInputValue(new Date()));
+                  if (value !== 'already_quit') setDateValue(dateToInputValue(addDays(new Date(), 1)));
+                }}
+              />
+            )}
+            {step === 3 && (
               <>
-                <View>
-                  <Text style={styles.title}>WHEN DID YOU QUIT?</Text>
-                  <Text style={styles.bodyText}>This sets your smoke-free streak.</Text>
-                </View>
-
-                {/* each dropdown also has a text field for typing the date */}
-                <View style={styles.dateRow}>
-                  <DateDropdown
-                    label="DAY"
-                    maxLength={2}
-                    options={dayOptions}
-                    value={day}
-                    onChangeText={setDay}
-                  />
-                  <DateDropdown
-                    label="MONTH"
-                    maxLength={2}
-                    options={monthOptions}
-                    value={month}
-                    onChangeText={setMonth}
-                  />
-                  <DateDropdown
-                    label="YEAR"
-                    maxLength={4}
-                    options={yearOptions}
-                    value={year}
-                    onChangeText={setYear}
-                    wide
-                  />
-                </View>
+                <Heading
+                  title={journey === 'already_quit' ? 'WHEN DID YOU QUIT?' : 'WHEN DO YOU WANT TO QUIT?'}
+                  body={
+                    journey === 'already_quit'
+                      ? 'Choose today or a date in the past.'
+                      : journey === 'cut_down'
+                        ? 'This is the date you are working towards.'
+                        : 'Choose today or a date ahead.'
+                  }
+                />
+                <DateFields value={dateValue} onChange={setDateValue} />
               </>
-            ) : (
+            )}
+            {step === 4 && (
               <>
-                <View>
-                  <Text style={styles.title}>WHAT DID SMOKING COST?</Text>
-                  <Text style={styles.bodyText}>Choose the time period you used for this amount.</Text>
-                </View>
-
-                {/* each option saves a value used by the money calculation */}
-                <View style={styles.periodRow}>
-                  {spendPeriods.map((period) => {
-                    const selected = period.value === spendPeriod;
-                    return (
-                      <Pressable
-                        accessibilityRole="button"
-                        key={period.value}
-                        onPress={() => {
-                          void Haptics.selectionAsync();
-                          setSpendPeriod(period.value);
-                        }}
-                        style={({ pressed }) => [
-                          styles.periodButton,
-                          selected && styles.periodButtonSelected,
-                          pressed && styles.buttonPressed,
-                        ]}>
-                        <Text style={[styles.periodText, selected && styles.periodTextSelected]}>{period.label}</Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-
+                <Heading
+                  title={journey === 'already_quit' ? 'WHAT DID IT COST?' : 'WHAT DOES IT COST NOW?'}
+                  body="Choose the time period you use for this amount."
+                />
+                <SegmentedOptions
+                  options={spendPeriods}
+                  selected={spendPeriod}
+                  onSelect={setSpendPeriod}
+                />
                 <View style={styles.amountBlock}>
                   <Text style={styles.fieldLabel}>{spendPeriod.toUpperCase()} SPEND</Text>
                   <View style={styles.amountInputWrap}>
@@ -194,20 +211,50 @@ export default function OnboardingScreen() {
                 </View>
               </>
             )}
+            {step === 5 && (
+              <>
+                <Heading
+                  title="HOW OFTEN WILL YOU CHECK IN?"
+                  body="This tracks spending, not nicotine use."
+                />
+                <SegmentedOptions options={cadences} selected={checkInCadence} onSelect={setCheckInCadence} />
+                <Pressable
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: remindersEnabled }}
+                  onPress={() => setRemindersEnabled((current) => !current)}
+                  style={styles.reminderToggle}>
+                  <View style={[styles.checkbox, remindersEnabled && styles.checkboxChecked]}>
+                    {remindersEnabled && <Ionicons name="checkmark" size={18} color={SkopColors.surface} />}
+                  </View>
+                  <View style={styles.reminderCopy}>
+                    <Text style={styles.reminderTitle}>REMIND ME</Text>
+                    <Text style={styles.reminderBody}>Use a general SKOP notification.</Text>
+                  </View>
+                </Pressable>
+                {remindersEnabled && (
+                  <SegmentedOptions
+                    options={[
+                      { label: 'MORNING 08:00', value: 'morning' as const },
+                      { label: 'EVENING 20:00', value: 'evening' as const },
+                    ]}
+                    selected={reminderTime}
+                    onSelect={setReminderTime}
+                  />
+                )}
+              </>
+            )}
 
             {!!errorMessage && (
-              <Text accessibilityLiveRegion="polite" style={styles.errorText}>
-                {errorMessage}
-              </Text>
+              <Text accessibilityLiveRegion="polite" style={styles.errorText}>{errorMessage}</Text>
             )}
           </View>
 
           <View style={styles.actions}>
-            {step === 2 && <SkopButton disabled={saving} label="BACK" onPress={() => setStep(1)} />}
+            {step > 1 && <SkopButton disabled={saving} label="BACK" onPress={() => setStep((current) => current - 1)} />}
             <SkopButton
               disabled={saving}
-              label={saving ? 'SAVING...' : step === 1 ? 'CONTINUE' : 'START SKOP'}
-              onPress={step === 1 ? continueToSpend : finishOnboarding}
+              label={saving ? 'SAVING...' : step === totalSteps ? 'START SKOP' : 'CONTINUE'}
+              onPress={step === totalSteps ? finishOnboarding : moveNext}
               variant="green"
             />
           </View>
@@ -217,151 +264,164 @@ export default function OnboardingScreen() {
   );
 }
 
-function DateDropdown({
-  label,
-  maxLength,
-  options,
-  value,
-  onChangeText,
-  wide,
-}: {
-  label: string;
-  maxLength: number;
-  options: string[];
-  value: string;
-  onChangeText: (value: string) => void;
-  wide?: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState(value);
-  const lastScrollNotch = useRef(0);
-  const filteredOptions =
-    draft === value ? options : options.filter((option) => !draft || option.startsWith(draft));
-
-  // the field opens a list but keeps a typed value when the user presses done
-  const openDropdown = () => {
-    setDraft(value);
-    lastScrollNotch.current = 0;
-    void Haptics.selectionAsync();
-    setOpen(true);
-  };
-
-  const saveTypedValue = () => {
-    void Haptics.selectionAsync();
-    onChangeText(draft);
-    setOpen(false);
-  };
-
-  // one selection tap plays each time scrolling crosses an option row
-  const handleOptionScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const nextNotch = Math.round(event.nativeEvent.contentOffset.y / 44);
-    if (nextNotch === lastScrollNotch.current) return;
-
-    lastScrollNotch.current = nextNotch;
-    void Haptics.selectionAsync();
-  };
-
+function Heading({ body, title }: { body: string; title: string }) {
   return (
-    <View style={[styles.dateField, wide && styles.yearField]}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <Pressable
-        accessibilityLabel={`Choose ${label.toLowerCase()}`}
-        accessibilityRole="button"
-        onPress={openDropdown}
-        style={({ pressed }) => [styles.dateDropdown, pressed && styles.buttonPressed]}>
-        <Text numberOfLines={1} style={styles.dateValue}>
-          {value}
-        </Text>
-        <Ionicons name="chevron-down" size={21} color={SkopColors.ink} />
-      </Pressable>
-
-      {open && (
-        <Modal animationType="fade" onRequestClose={() => setOpen(false)} transparent visible>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.modalKeyboard}>
-            <Pressable onPress={() => setOpen(false)} style={styles.modalBackdrop}>
-              <Pressable onPress={(event) => event.stopPropagation()} style={styles.dropdownDialog}>
-                <View style={styles.dropdownHeading}>
-                  <Text style={styles.dropdownTitle}>CHOOSE {label}</Text>
-                  <Pressable
-                    accessibilityLabel="Close dropdown"
-                    hitSlop={10}
-                    onPress={() => setOpen(false)}
-                    style={styles.closeButton}>
-                    <Ionicons name="close" size={24} color={SkopColors.ink} />
-                  </Pressable>
-                </View>
-
-                <TextInput
-                  autoFocus
-                  keyboardType="number-pad"
-                  maxLength={maxLength}
-                  onChangeText={(nextValue) => setDraft(nextValue.replace(/\D/g, ''))}
-                  selectTextOnFocus
-                  style={styles.dropdownInput}
-                  value={draft}
-                />
-
-                <ScrollView
-                  keyboardShouldPersistTaps="handled"
-                  onScroll={handleOptionScroll}
-                  scrollEventThrottle={16}
-                  showsVerticalScrollIndicator={false}
-                  style={styles.optionList}>
-                  {filteredOptions.map((option) => (
-                    <Pressable
-                      key={option}
-                      onPress={() => {
-                        void Haptics.selectionAsync();
-                        onChangeText(option);
-                        setOpen(false);
-                      }}
-                      style={({ pressed }) => [
-                        styles.optionButton,
-                        option === value && styles.optionButtonSelected,
-                        pressed && styles.optionButtonPressed,
-                      ]}>
-                      <Text style={styles.optionText}>{option}</Text>
-                    </Pressable>
-                  ))}
-                </ScrollView>
-
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={saveTypedValue}
-                  style={({ pressed }) => [styles.doneButton, pressed && styles.buttonPressed]}>
-                  <Text style={styles.doneButtonText}>DONE</Text>
-                </Pressable>
-              </Pressable>
-            </Pressable>
-          </KeyboardAvoidingView>
-        </Modal>
-      )}
+    <View style={styles.heading}>
+      <Text adjustsFontSizeToFit numberOfLines={2} style={styles.title}>{title}</Text>
+      <Text style={styles.bodyText}>{body}</Text>
     </View>
   );
 }
 
-function parseDate(dayValue: string, monthValue: string, yearValue: string) {
-  const day = Number(dayValue);
-  const month = Number(monthValue);
-  const year = Number(yearValue);
+function ChoiceStep<T extends string>({
+  body,
+  onSelect,
+  options,
+  selected,
+  title,
+}: {
+  body: string;
+  onSelect: (value: T) => void;
+  options: { label: string; body: string; value: T }[];
+  selected: T;
+  title: string;
+}) {
+  return (
+    <>
+      <Heading body={body} title={title} />
+      <View style={styles.choiceList}>
+        {options.map((option) => (
+          <Pressable
+            key={option.value}
+            onPress={() => {
+              void Haptics.selectionAsync();
+              onSelect(option.value);
+            }}
+            style={({ pressed }) => [
+              styles.choiceButton,
+              selected === option.value && styles.choiceButtonSelected,
+              pressed && styles.buttonPressed,
+            ]}>
+            <View style={styles.choiceCopy}>
+              <Text style={styles.choiceTitle}>{option.label}</Text>
+              <Text style={styles.choiceBody}>{option.body}</Text>
+            </View>
+            <Ionicons
+              color={SkopColors.ink}
+              name={selected === option.value ? 'checkmark-circle' : 'ellipse-outline'}
+              size={26}
+            />
+          </Pressable>
+        ))}
+      </View>
+    </>
+  );
+}
+
+function SegmentedOptions<T extends string>({
+  onSelect,
+  options,
+  selected,
+}: {
+  onSelect: (value: T) => void;
+  options: { label: string; value: T }[];
+  selected: T;
+}) {
+  return (
+    <View style={styles.periodRow}>
+      {options.map((option) => (
+        <Pressable
+          key={option.value}
+          onPress={() => {
+            void Haptics.selectionAsync();
+            onSelect(option.value);
+          }}
+          style={({ pressed }) => [
+            styles.periodButton,
+            selected === option.value && styles.periodButtonSelected,
+            pressed && styles.buttonPressed,
+          ]}>
+          <Text adjustsFontSizeToFit numberOfLines={1} style={styles.periodText}>{option.label}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+function DateFields({ onChange, value }: { onChange: (value: string) => void; value: string }) {
+  const [yearValue, monthValue, dayValue] = value.split('-');
+  const update = (part: 'day' | 'month' | 'year', next: string) => {
+    const day = part === 'day' ? next : dayValue;
+    const month = part === 'month' ? next : monthValue;
+    const year = part === 'year' ? next : yearValue;
+    onChange(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
+  };
+
+  return (
+    <View style={styles.dateRow}>
+      <DateInput label="DAY" maxLength={2} value={String(Number(dayValue))} onChange={(next) => update('day', next)} />
+      <DateInput label="MONTH" maxLength={2} value={String(Number(monthValue))} onChange={(next) => update('month', next)} />
+      <DateInput label="YEAR" maxLength={4} value={yearValue} onChange={(next) => update('year', next)} wide />
+    </View>
+  );
+}
+
+function DateInput({
+  label,
+  maxLength,
+  onChange,
+  value,
+  wide,
+}: {
+  label: string;
+  maxLength: number;
+  onChange: (value: string) => void;
+  value: string;
+  wide?: boolean;
+}) {
+  return (
+    <View style={[styles.dateField, wide && styles.yearField]}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <View style={styles.dateInputWrap}>
+        <TextInput
+          keyboardType="number-pad"
+          maxLength={maxLength}
+          onChangeText={(next) => onChange(next.replace(/\D/g, ''))}
+          selectTextOnFocus
+          style={styles.dateInput}
+          value={value}
+        />
+        <Ionicons color={SkopColors.ink} name="calendar-outline" size={19} />
+      </View>
+    </View>
+  );
+}
+
+function validateJourneyDate(journey: QuitJourney, date: Date) {
+  if (Number.isNaN(date.getTime()) || date.getFullYear() < 1900) return 'Enter a valid date.';
+  const today = startOfDay(new Date());
+  const selected = startOfDay(date);
+  if (journey === 'already_quit' && selected > today) return 'Choose today or a date in the past.';
+  if (journey === 'cut_down' && selected <= today) return 'Choose a target date after today.';
+  if (journey === 'ready_to_quit' && selected < today) return 'Choose today or a date ahead.';
+  return '';
+}
+
+function inputValueToDate(value: string) {
+  const [year, month, day] = value.split('-').map(Number);
   const date = new Date(year, month - 1, day);
-
-  if (
-    year < 1900 ||
-    date.getFullYear() !== year ||
-    date.getMonth() !== month - 1 ||
-    date.getDate() !== day
-  ) {
-    return null;
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+    return new Date(Number.NaN);
   }
-
-  return startOfDay(date);
+  return date;
 }
 
 function startOfDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function addDays(date: Date, days: number) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
 }
 
 function dateToInputValue(date: Date) {
@@ -379,214 +439,116 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 720,
     alignSelf: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 28,
+    padding: 24,
+    gap: 28,
   },
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 24,
-  },
-  stepBlock: { flex: 1, maxWidth: 220, gap: 8 },
-  stepText: {
-    color: SkopColors.ink,
-    fontFamily: SkopFonts.bold,
-    fontSize: 14,
-    textAlign: 'right',
-  },
+  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  stepBlock: { width: '48%', maxWidth: 300, alignItems: 'flex-end', gap: 7 },
+  stepText: { color: SkopColors.ink, fontFamily: SkopFonts.bold, fontSize: 13 },
   progressRail: {
-    height: 8,
+    width: '100%',
+    height: 9,
     borderWidth: 2,
     borderColor: SkopColors.ink,
     backgroundColor: SkopColors.surface,
   },
   progressFill: { height: '100%', backgroundColor: SkopColors.green },
-  form: {
-    flex: 1,
-    justifyContent: 'center',
-    gap: 34,
-    paddingVertical: 36,
+  form: { flex: 1, justifyContent: 'center', minHeight: 380, gap: 24 },
+  heading: { alignItems: 'center', gap: 7 },
+  title: { color: SkopColors.ink, fontFamily: SkopFonts.bold, fontSize: 29, textAlign: 'center' },
+  bodyText: { color: SkopColors.ink, fontFamily: SkopFonts.body, fontSize: 16, textAlign: 'center' },
+  choiceList: { gap: 14 },
+  choiceButton: {
+    minHeight: 76,
+    padding: 16,
+    borderWidth: 2,
+    borderColor: SkopColors.ink,
+    borderRadius: 8,
+    backgroundColor: SkopColors.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    ...skopShadow,
   },
-  title: {
-    color: SkopColors.ink,
-    fontFamily: SkopFonts.bold,
-    fontSize: 34,
-    textAlign: 'center',
-  },
-  bodyText: {
-    marginTop: 8,
-    color: SkopColors.ink,
-    fontFamily: SkopFonts.body,
-    fontSize: 17,
-    textAlign: 'center',
-  },
+  choiceButtonSelected: { backgroundColor: SkopColors.yellow },
+  choiceCopy: { flex: 1, minWidth: 0 },
+  choiceTitle: { color: SkopColors.ink, fontFamily: SkopFonts.bold, fontSize: 17 },
+  choiceBody: { color: SkopColors.ink, fontFamily: SkopFonts.body, fontSize: 14, marginTop: 2 },
   dateRow: { flexDirection: 'row', gap: 12 },
-  dateField: { flex: 1, gap: 7 },
-  yearField: { flex: 1.35 },
-  fieldLabel: {
-    color: SkopColors.ink,
-    fontFamily: SkopFonts.bold,
-    fontSize: 15,
-  },
-  dateDropdown: {
-    height: 64,
+  dateField: { flex: 1, gap: 6 },
+  yearField: { flex: 1.25 },
+  fieldLabel: { color: SkopColors.ink, fontFamily: SkopFonts.bold, fontSize: 14 },
+  dateInputWrap: {
+    height: 58,
     borderWidth: 2,
     borderColor: SkopColors.ink,
     borderRadius: 8,
     backgroundColor: SkopColors.surface,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    ...skopShadow,
   },
-  dateValue: {
+  dateInput: {
     flex: 1,
     color: SkopColors.ink,
     fontFamily: SkopFonts.bold,
-    fontSize: 25,
+    fontSize: 20,
     textAlign: 'center',
   },
-  modalKeyboard: { flex: 1 },
-  modalBackdrop: {
-    flex: 1,
-    padding: 24,
-    backgroundColor: 'rgba(33,23,18,0.45)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dropdownDialog: {
-    width: '100%',
-    maxWidth: 360,
-    maxHeight: '72%',
-    borderWidth: 2,
-    borderColor: SkopColors.ink,
-    borderRadius: 8,
-    backgroundColor: SkopColors.background,
-    padding: 18,
-    ...skopShadow,
-  },
-  dropdownHeading: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 14,
-  },
-  dropdownTitle: {
-    color: SkopColors.ink,
-    fontFamily: SkopFonts.bold,
-    fontSize: 21,
-  },
-  closeButton: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dropdownInput: {
-    height: 54,
-    borderWidth: 2,
-    borderColor: SkopColors.ink,
-    borderRadius: 8,
-    backgroundColor: SkopColors.surface,
-    color: SkopColors.ink,
-    fontFamily: SkopFonts.bold,
-    fontSize: 22,
-    paddingHorizontal: 14,
-    textAlign: 'center',
-  },
-  optionList: {
-    marginTop: 12,
-    marginBottom: 14,
-  },
-  optionButton: {
-    minHeight: 44,
-    borderBottomWidth: 1,
-    borderBottomColor: SkopColors.ink,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  optionButtonSelected: {
-    backgroundColor: SkopColors.yellow,
-  },
-  optionButtonPressed: {
-    backgroundColor: SkopColors.green,
-  },
-  optionText: {
-    color: SkopColors.ink,
-    fontFamily: SkopFonts.bold,
-    fontSize: 18,
-  },
-  doneButton: {
-    height: 48,
-    borderWidth: 2,
-    borderColor: SkopColors.ink,
-    borderRadius: 8,
-    backgroundColor: SkopColors.green,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...skopShadow,
-  },
-  doneButtonText: {
-    color: SkopColors.surface,
-    fontFamily: SkopFonts.bold,
-    fontSize: 17,
-  },
-  periodRow: { flexDirection: 'row', gap: 8 },
+  periodRow: { flexDirection: 'row', gap: 10 },
   periodButton: {
     flex: 1,
-    height: 48,
+    minWidth: 0,
+    minHeight: 52,
+    paddingHorizontal: 8,
     borderWidth: 2,
     borderColor: SkopColors.ink,
     borderRadius: 8,
     backgroundColor: SkopColors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    ...skopShadow,
+    boxShadow: `0px 4px 0px 0px ${SkopColors.shadow}`,
   },
-  periodButtonSelected: {
-    backgroundColor: SkopColors.yellow,
-  },
-  periodText: {
-    color: SkopColors.ink,
-    fontFamily: SkopFonts.bold,
-    fontSize: 14,
-  },
-  periodTextSelected: { color: SkopColors.ink },
-  buttonPressed: { transform: [{ translateY: 3 }] },
+  periodButtonSelected: { backgroundColor: SkopColors.yellow },
+  periodText: { color: SkopColors.ink, fontFamily: SkopFonts.bold, fontSize: 14, textAlign: 'center' },
   amountBlock: { gap: 7 },
   amountInputWrap: {
-    height: 72,
+    height: 64,
+    paddingHorizontal: 16,
     borderWidth: 2,
     borderColor: SkopColors.ink,
     borderRadius: 8,
     backgroundColor: SkopColors.surface,
-    paddingHorizontal: 18,
     flexDirection: 'row',
     alignItems: 'center',
   },
-  currency: {
-    color: SkopColors.ink,
-    fontFamily: SkopFonts.bold,
-    fontSize: 28,
-  },
-  amountInput: {
-    flex: 1,
-    color: SkopColors.ink,
-    fontFamily: SkopFonts.bold,
-    fontSize: 28,
-    paddingHorizontal: 8,
-  },
-  errorText: {
-    color: '#b42318',
-    fontFamily: SkopFonts.medium,
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  actions: {
-    height: 82,
+  currency: { color: SkopColors.ink, fontFamily: SkopFonts.bold, fontSize: 23 },
+  amountInput: { flex: 1, color: SkopColors.ink, fontFamily: SkopFonts.bold, fontSize: 23, marginLeft: 8 },
+  reminderToggle: {
+    minHeight: 72,
+    padding: 14,
+    borderWidth: 2,
+    borderColor: SkopColors.ink,
+    borderRadius: 8,
+    backgroundColor: SkopColors.surface,
     flexDirection: 'row',
-    gap: 14,
+    alignItems: 'center',
+    gap: 12,
   },
+  checkbox: {
+    width: 26,
+    height: 26,
+    borderWidth: 2,
+    borderColor: SkopColors.ink,
+    borderRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: { backgroundColor: SkopColors.green },
+  reminderCopy: { flex: 1 },
+  reminderTitle: { color: SkopColors.ink, fontFamily: SkopFonts.bold, fontSize: 16 },
+  reminderBody: { color: SkopColors.ink, fontFamily: SkopFonts.body, fontSize: 14 },
+  errorText: { color: '#b42318', fontFamily: SkopFonts.medium, fontSize: 14, textAlign: 'center' },
+  actions: { flexDirection: 'row', gap: 16, minHeight: 64 },
+  buttonPressed: { transform: [{ translateY: 3 }] },
 });

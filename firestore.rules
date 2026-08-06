@@ -1,0 +1,217 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function ownsUserData(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    function hasVerifiedEmail() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function validUserProfile() {
+      let data = request.resource.data;
+
+      return data.keys().hasOnly([
+          'profileVersion',
+          'productType',
+          'journey',
+          'status',
+          'quitDate',
+          'targetQuitDate',
+          'spendPeriod',
+          'spendAmountCents',
+          'checkInCadence',
+          'remindersEnabled',
+          'reminderTime',
+          'ageConfirmedAt',
+          'schemaVersion',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasAll([
+          'profileVersion',
+          'productType',
+          'journey',
+          'status',
+          'quitDate',
+          'targetQuitDate',
+          'spendPeriod',
+          'spendAmountCents',
+          'checkInCadence',
+          'remindersEnabled',
+          'reminderTime',
+          'ageConfirmedAt',
+          'schemaVersion',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.profileVersion == 2
+        && data.productType in ['cigarettes', 'vaping', 'both']
+        && data.journey in ['already_quit', 'cut_down', 'ready_to_quit']
+        && data.status in ['quit', 'reducing', 'scheduled']
+        && (data.quitDate == null
+          || (data.quitDate is string
+            && data.quitDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')))
+        && (data.targetQuitDate == null
+          || (data.targetQuitDate is string
+            && data.targetQuitDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')))
+        && ((data.status == 'quit' && data.quitDate is string && data.targetQuitDate == null)
+          || (data.status in ['reducing', 'scheduled']
+            && data.quitDate == null
+            && data.targetQuitDate is string))
+        && data.spendPeriod in ['daily', 'weekly', 'monthly']
+        && data.spendAmountCents is int
+        && data.spendAmountCents > 0
+        && data.spendAmountCents <= 10000000
+        && (data.checkInCadence == null
+          || data.checkInCadence in ['daily', 'weekly', 'monthly'])
+        && data.remindersEnabled is bool
+        && (data.reminderTime == null || data.reminderTime in ['morning', 'evening'])
+        && (!data.remindersEnabled
+          || (data.status == 'reducing'
+            && data.checkInCadence != null
+            && data.reminderTime != null))
+        && data.ageConfirmedAt is string
+        && data.schemaVersion == 2
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function validSession() {
+      let data = request.resource.data;
+
+      return data.keys().hasOnly([
+          'startedAt',
+          'endedAt',
+          'durationSeconds',
+          'score',
+          'highestLevel',
+          'receivedAt',
+          'schemaVersion'
+        ])
+        && data.keys().hasAll([
+          'startedAt',
+          'endedAt',
+          'durationSeconds',
+          'score',
+          'highestLevel',
+          'receivedAt',
+          'schemaVersion'
+        ])
+        && data.startedAt is timestamp
+        && data.endedAt is timestamp
+        && data.endedAt >= data.startedAt
+        && data.durationSeconds is int
+        && data.durationSeconds >= 1
+        && data.durationSeconds <= 86400
+        && data.score is int
+        && data.score >= 0
+        && data.score <= 1000000000
+        && data.highestLevel is int
+        && data.highestLevel >= 1
+        && data.highestLevel <= 10000
+        && data.receivedAt is timestamp
+        && data.schemaVersion == 1;
+    }
+
+    function validSpendCheckIn() {
+      let data = request.resource.data;
+
+      return data.keys().hasOnly([
+          'periodStart',
+          'periodEnd',
+          'amountCents',
+          'expectedBaselineCents',
+          'cadence',
+          'createdAt',
+          'receivedAt',
+          'schemaVersion'
+        ])
+        && data.keys().hasAll([
+          'periodStart',
+          'periodEnd',
+          'amountCents',
+          'expectedBaselineCents',
+          'cadence',
+          'createdAt',
+          'receivedAt',
+          'schemaVersion'
+        ])
+        && data.periodStart is string
+        && data.periodStart.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && data.periodEnd is string
+        && data.periodEnd.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && data.periodEnd >= data.periodStart
+        && data.amountCents is int
+        && data.amountCents >= 0
+        && data.amountCents <= 10000000
+        && data.expectedBaselineCents is int
+        && data.expectedBaselineCents > 0
+        && data.expectedBaselineCents <= 10000000
+        && data.cadence in ['daily', 'weekly', 'monthly']
+        && data.createdAt is timestamp
+        && data.receivedAt is timestamp
+        && data.schemaVersion == 1;
+    }
+
+    match /users/{userId} {
+      allow read: if ownsUserData(userId) && hasVerifiedEmail();
+
+      allow create: if ownsUserData(userId)
+        && hasVerifiedEmail()
+        && validUserProfile()
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+
+      allow update: if ownsUserData(userId)
+        && hasVerifiedEmail()
+        && validUserProfile()
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedAt == request.time;
+
+      allow delete: if ownsUserData(userId) && hasVerifiedEmail();
+
+      match /sessions/{sessionId} {
+        allow read: if ownsUserData(userId) && hasVerifiedEmail();
+
+        allow create: if ownsUserData(userId)
+          && hasVerifiedEmail()
+          && validSession()
+          && request.resource.data.receivedAt == request.time;
+
+        allow update: if ownsUserData(userId)
+          && hasVerifiedEmail()
+          && validSession()
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['receivedAt'])
+          && request.resource.data.receivedAt == request.time;
+
+        allow delete: if ownsUserData(userId) && hasVerifiedEmail();
+      }
+
+      match /spendCheckIns/{checkInId} {
+        allow read: if ownsUserData(userId) && hasVerifiedEmail();
+
+        allow create: if ownsUserData(userId)
+          && hasVerifiedEmail()
+          && validSpendCheckIn()
+          && request.resource.data.receivedAt == request.time;
+
+        allow update: if ownsUserData(userId)
+          && hasVerifiedEmail()
+          && validSpendCheckIn()
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['amountCents', 'createdAt', 'receivedAt'])
+          && request.resource.data.receivedAt == request.time;
+
+        allow delete: if ownsUserData(userId) && hasVerifiedEmail();
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

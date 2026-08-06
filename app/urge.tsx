@@ -56,6 +56,7 @@ const ROUTE_BORDER_WIDTH = 3;
 const ROUTE_RADIUS = 4;
 const ROUTE_SHADOW_Y = 6;
 const LEVEL_TRANSITION_MS = 5000;
+const COLLISION_TOLERANCE = 0.06;
 
 // each route cell is a react native view
 // this checks its neighbours so only corners on the edge of the route get rounded
@@ -119,6 +120,11 @@ function markerFitsRoute(
       ),
     ),
   );
+}
+
+// collision gets a small margin so border pixels do not count as a wall
+function collisionPadding(level: number) {
+  return Math.max(0, routeWidthScale(level) - 1 + COLLISION_TOLERANCE);
 }
 
 // a blocked grid step may hit a wall before reaching the next cell
@@ -222,6 +228,8 @@ export default function UrgeGameScreen() {
   // the current value is read and changed through the ref's current property
   const sessionStartedAt = useRef<number | null>(null);
   const completedSession = useRef(false);
+  const sessionBestScoreRef = useRef(0);
+  const sessionHighestLevelRef = useRef(1);
   const crashHapticPlayedRef = useRef(false);
   const scoreRef = useRef(0);
   const directionRef = useRef<Direction>("right");
@@ -233,6 +241,32 @@ export default function UrgeGameScreen() {
     to: { x: INITIAL_PLAYER.x + 1, y: INITIAL_PLAYER.y },
     progress: 0,
   });
+  const completeSessionRef = useRef(completeSession);
+  const recordHighScoreRef = useRef(recordHighScore);
+  completeSessionRef.current = completeSession;
+  recordHighScoreRef.current = recordHighScore;
+
+  // every exit path calls this, so one urge-screen visit makes one record
+  const saveSession = useCallback(() => {
+    if (sessionStartedAt.current === null || completedSession.current) return;
+    completedSession.current = true;
+
+    const endedAt = new Date();
+    const durationSeconds = Math.max(
+      1,
+      Math.floor((endedAt.getTime() - sessionStartedAt.current) / 1000),
+    );
+    const bestScore = Math.max(sessionBestScoreRef.current, scoreRef.current);
+
+    recordHighScoreRef.current(bestScore);
+    completeSessionRef.current({
+      startedAt: new Date(sessionStartedAt.current).toISOString(),
+      endedAt: endedAt.toISOString(),
+      durationSeconds,
+      score: bestScore,
+      highestLevel: sessionHighestLevelRef.current,
+    });
+  }, []);
 
   // usecallback keeps the same function between renders
   // this matters because the game effect lists this function as a dependency
@@ -260,6 +294,11 @@ export default function UrgeGameScreen() {
       ScreenOrientation.unlockAsync().catch(() => undefined);
     };
   }, []);
+
+  // back gestures and route changes still save the active urge session
+  useEffect(() => {
+    return () => saveSession();
+  }, [saveSession]);
 
   // this timer compares the current time with the time the screen opened
   // setsessionseconds causes the timer text to render once per second
@@ -310,7 +349,7 @@ export default function UrgeGameScreen() {
           x: segment.from.x + (segment.to.x - segment.from.x) * crashProgress,
           y: segment.from.y + (segment.to.y - segment.from.y) * crashProgress,
         });
-        recordHighScore(scoreRef.current);
+        recordHighScoreRef.current(scoreRef.current);
         setPhase("crashed");
       };
 
@@ -351,8 +390,11 @@ export default function UrgeGameScreen() {
 
           if (nextScore !== scoreRef.current) {
             scoreRef.current = nextScore;
+            sessionBestScoreRef.current = Math.max(
+              sessionBestScoreRef.current,
+              nextScore,
+            );
             setScore(nextScore);
-            recordHighScore(nextScore);
           }
 
           if (nextScore >= levelTarget(level)) {
@@ -388,7 +430,7 @@ export default function UrgeGameScreen() {
           };
           const candidateKey = cellKey(candidatePoint);
           const collisionLevel = phase === "transition" ? level + 1 : level;
-          const routePadding = routeWidthScale(collisionLevel) - 1;
+          const routePadding = collisionPadding(collisionLevel);
           return (
             markerFitsRoute(candidatePoint, route.safeCells, routePadding) &&
             !route.obstacleCells.has(candidateKey)
@@ -412,7 +454,8 @@ export default function UrgeGameScreen() {
           const vector = directionVector[activeDirection];
           const target = { x: arrived.x + vector.x, y: arrived.y + vector.y };
           const targetKey = cellKey(target);
-          const routePadding = routeWidthScale(level) - 1;
+          const collisionLevel = phase === "transition" ? level + 1 : level;
+          const routePadding = collisionPadding(collisionLevel);
           const wallContact = findWallContact(
             arrived,
             target,
@@ -457,7 +500,7 @@ export default function UrgeGameScreen() {
     }, frameDuration);
 
     return () => clearInterval(timer);
-  }, [level, phase, recordHighScore, resetMovement, route]);
+  }, [level, phase, resetMovement, route]);
 
   // this timer only runs during the level transition
   // it updates the message and starts the next level after five seconds
@@ -474,7 +517,14 @@ export default function UrgeGameScreen() {
 
       if (elapsed < LEVEL_TRANSITION_MS) return;
 
-      setLevel((current) => current + 1);
+      setLevel((current) => {
+        const nextLevel = current + 1;
+        sessionHighestLevelRef.current = Math.max(
+          sessionHighestLevelRef.current,
+          nextLevel,
+        );
+        return nextLevel;
+      });
       setPhase("playing");
     };
 
@@ -562,30 +612,16 @@ export default function UrgeGameScreen() {
   };
 
   // leaving saves one session when the player has started moving
-  const finishSession = () => {
-    recordHighScore(scoreRef.current);
-    if (sessionStartedAt.current !== null && !completedSession.current) {
-      const endedAt = new Date();
-      const durationSeconds = Math.max(
-        1,
-        Math.floor((endedAt.getTime() - sessionStartedAt.current) / 1000),
-      );
-
-      completeSession({
-        startedAt: new Date(sessionStartedAt.current).toISOString(),
-        endedAt: endedAt.toISOString(),
-        durationSeconds,
-        score: scoreRef.current,
-        highestLevel: level,
-      });
-      completedSession.current = true;
-    }
+  const finishSession = async () => {
+    saveSession();
+    // lets android finish leaving landscape before the home screen renders
+    await ScreenOrientation.unlockAsync().catch(() => undefined);
     router.replace("/");
   };
 
   // the close and leave buttons return home without another prompt
   const requestLeave = () => {
-    finishSession();
+    void finishSession();
   };
 
   // onlayout gives the measured width and height after react native lays out the board

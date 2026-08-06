@@ -3,7 +3,7 @@ import type { ViewStyle } from 'react-native';
 // keeps the brand colours in one place
 export const SkopColors = {
   background: '#fff3d6',
-  chrome: 'rgba(255, 243, 214, 0.95)',
+  chrome: '#fff3d692',
   surface: '#fbf6e9',
   ink: '#211712',
   shadow: '#15110f',

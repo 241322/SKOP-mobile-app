@@ -34,6 +34,7 @@ export function AuthScreen({ mode }: AuthScreenProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmedPassword, setConfirmedPassword] = useState('');
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -41,6 +42,7 @@ export function AuthScreen({ mode }: AuthScreenProps) {
   const { height, width } = useWindowDimensions();
   const wideLayout = width >= 700 || width > height;
   const compactBrand = height < 600;
+  const shortLandscape = width > height && height < 600;
 
   // checks the form before sending the details to firebase
   const submit = async () => {
@@ -59,6 +61,11 @@ export function AuthScreen({ mode }: AuthScreenProps) {
 
     if (isSignup && password !== confirmedPassword) {
       setErrorMessage('The passwords do not match.');
+      return;
+    }
+
+    if (isSignup && !ageConfirmed) {
+      setErrorMessage('Confirm that you are 18 or older.');
       return;
     }
 
@@ -89,7 +96,11 @@ export function AuthScreen({ mode }: AuthScreenProps) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           style={styles.scroll}
-          contentContainerStyle={[styles.content, wideLayout && styles.wideContent]}>
+          contentContainerStyle={[
+            styles.content,
+            wideLayout && styles.wideContent,
+            shortLandscape && styles.shortLandscapeContent,
+          ]}>
           <View style={styles.brandArea}>
             <Brand compact={compactBrand} />
           </View>
@@ -120,17 +131,33 @@ export function AuthScreen({ mode }: AuthScreenProps) {
               />
               {/* signup needs the password entered twice */}
               {isSignup && (
-                <Field
-                  autoComplete="new-password"
-                  editable={!submitting}
-                  label="CONFIRM PASSWORD"
-                  onChangeText={setConfirmedPassword}
-                  onSubmitEditing={submit}
-                  placeholder="Re-enter password here..."
-                  secure
-                  textContentType="newPassword"
-                  value={confirmedPassword}
-                />
+                <>
+                  <Field
+                    autoComplete="new-password"
+                    editable={!submitting}
+                    label="CONFIRM PASSWORD"
+                    onChangeText={setConfirmedPassword}
+                    onSubmitEditing={submit}
+                    placeholder="Re-enter password here..."
+                    secure
+                    textContentType="newPassword"
+                    value={confirmedPassword}
+                  />
+                  {/* skop's quit guidance is written for adults */}
+                  <Pressable
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: ageConfirmed }}
+                    disabled={submitting}
+                    onPress={() => setAgeConfirmed((current) => !current)}
+                    style={styles.ageRow}>
+                    <View style={[styles.checkbox, ageConfirmed && styles.checkboxChecked]}>
+                      {ageConfirmed && (
+                        <Ionicons name="checkmark" size={18} color={SkopColors.surface} />
+                      )}
+                    </View>
+                    <Text style={styles.ageText}>I confirm that I am 18 or older</Text>
+                  </Pressable>
+                </>
               )}
             </View>
 
@@ -251,6 +278,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 56,
   },
+  shortLandscapeContent: {
+    alignItems: 'flex-start',
+    paddingVertical: 20,
+    gap: 32,
+  },
   brandArea: {
     flex: 1,
     alignItems: 'center',
@@ -301,5 +333,30 @@ const styles = StyleSheet.create({
   actions: {
     gap: 20,
     height: 142,
+  },
+  ageRow: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  checkbox: {
+    width: 26,
+    height: 26,
+    borderWidth: 2,
+    borderColor: SkopColors.ink,
+    borderRadius: 4,
+    backgroundColor: SkopColors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: SkopColors.green,
+  },
+  ageText: {
+    flex: 1,
+    color: SkopColors.ink,
+    fontFamily: SkopFonts.medium,
+    fontSize: 15,
   },
 });

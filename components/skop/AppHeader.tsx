@@ -1,8 +1,10 @@
 import { Href, router } from 'expo-router';
 import { BlurView } from 'expo-blur';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
-import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { SkopColors, SkopFonts } from '@/constants/skop-theme';
 
@@ -10,18 +12,27 @@ type AppHeaderProps = {
   title: string;
 };
 
+export const APP_HEADER_HEIGHT = 96;
+export const APP_HEADER_COMPACT_HEIGHT = 70;
+
 export function AppHeader({ title }: AppHeaderProps) {
   // landscape and narrow phones use a shorter header so the title still fits
   const { height, width } = useWindowDimensions();
   const compact = width > height || height < 600 || width < 400;
+  const expoGoAndroid =
+    Platform.OS === 'android' &&
+    Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
-  return (
-    <BlurView
-      intensity={60}
-      tint="light"
-      style={[styles.header, compact && styles.compactHeader]}>
-      {/* keeps the blur tinted with the skop background colour */}
-      <View pointerEvents="none" style={styles.chromeBackground} />
+  const headerContent = (
+    <>
+      {/* this fades the cream while letting more of the blur show near the bottom */}
+      <LinearGradient
+        colors={['#fff3d6', '#fff3d689']}
+        end={{ x: 0, y: 1 }}
+        pointerEvents="none"
+        start={{ x: 0, y: 0 }}
+        style={styles.chromeOverlay}
+      />
       {/* stacks the logo over its shadow image */}
       <View style={[styles.logoWrap, compact && styles.compactLogoWrap]}>
         <Image
@@ -56,26 +67,46 @@ export function AppHeader({ title }: AppHeaderProps) {
           <Image source={require('../../assets/figma/home-settings-source.svg')} style={styles.settingsIcon} />
         </Pressable>
       </View>
+    </>
+  );
+
+  // expo go can use a software renderer that cannot draw android hardware bitmaps
+  if (expoGoAndroid) {
+    return <View style={[styles.header, compact && styles.compactHeader]}>{headerContent}</View>;
+  }
+
+  return (
+    <BlurView
+      blurReductionFactor={4}
+      experimentalBlurMethod="dimezisBlurView"
+      intensity={Platform.OS === 'android' ? 35 : 60}
+      tint="default"
+      style={[styles.header, compact && styles.compactHeader]}>
+      {headerContent}
     </BlurView>
   );
 }
 
 const styles = StyleSheet.create({
   header: {
-    height: 96,
+    position: 'absolute',
+    zIndex: 10,
+    top: 0,
+    left: 0,
+    right: 0,
+    height: APP_HEADER_HEIGHT,
     paddingHorizontal: 24,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: SkopColors.chrome,
+    backgroundColor: 'transparent',
   },
   compactHeader: {
-    height: 70,
+    height: APP_HEADER_COMPACT_HEIGHT,
     paddingHorizontal: 20,
   },
-  chromeBackground: {
+  chromeOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: SkopColors.chrome,
   },
   titleRow: {
     flex: 1,

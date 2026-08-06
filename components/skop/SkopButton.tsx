@@ -10,6 +10,7 @@ type SkopButtonProps = {
   small?: boolean;
   compact?: boolean;
   disabled?: boolean;
+  labelFontSize?: number;
 };
 
 const variantColor = {
@@ -20,7 +21,15 @@ const variantColor = {
   pink: SkopColors.pink,
 };
 
-export function SkopButton({ label, onPress, variant = 'surface', small, compact, disabled }: SkopButtonProps) {
+export function SkopButton({
+  label,
+  onPress,
+  variant = 'surface',
+  small,
+  compact,
+  disabled,
+  labelFontSize,
+}: SkopButtonProps) {
   // filled buttons need text that works on dark colours
   const isFilled = variant === 'blue' || variant === 'green' || variant === 'pink';
 
@@ -51,6 +60,7 @@ export function SkopButton({ label, onPress, variant = 'surface', small, compact
           styles.label,
           small ? styles.smallLabel : compact ? styles.compactLabel : styles.bigLabel,
           isFilled && styles.lightLabel,
+          labelFontSize ? { fontSize: labelFontSize } : undefined,
         ]}>
         {label}
       </Text>

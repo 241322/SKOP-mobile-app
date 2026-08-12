@@ -877,18 +877,6 @@ export default function UrgeGameScreen() {
           {phase === "ready" && (
             <View style={styles.startPrompt} pointerEvents="none">
               <Image
-                source={require("../assets/figma/game-start-label.svg")}
-                style={styles.startLabel}
-              />
-              <Text
-                adjustsFontSizeToFit
-                minimumFontScale={0.7}
-                numberOfLines={1}
-                style={styles.startText}
-              >
-                Swipe Right to Start
-              </Text>
-              <Image
                 source={require("../assets/figma/game-swipe-hand.svg")}
                 style={styles.swipeHand}
               />
@@ -1118,26 +1106,13 @@ const styles = StyleSheet.create({
   startPrompt: {
     position: "absolute",
     left: 22,
-    bottom: 12,
-    width: 210,
-    height: 76,
-  },
-  startLabel: { position: "absolute", left: 0, top: 0, width: 168, height: 43 },
-  startText: {
-    position: "absolute",
-    left: 12,
-    top: 13,
-    width: 132,
-    color: SkopColors.surface,
-    fontFamily: SkopFonts.bold,
-    fontSize: 12,
+    bottom: 10,
+    width: 162,
+    height: 88,
   },
   swipeHand: {
-    position: "absolute",
-    left: 126,
-    top: 34,
-    width: 78,
-    height: 38,
+    width: 162,
+    height: 88,
   },
   progressRail: {
     height: 8,

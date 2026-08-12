@@ -109,16 +109,6 @@ export default function HomeScreen() {
           </View>
 
           <View style={[styles.actionSection, wideLayout && styles.wideActionSection]}>
-            {quitPlan?.status === 'reducing' && checkInDue && (
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => router.push('/check-in')}
-                style={({ pressed }) => [styles.checkInButton, pressed && styles.urgeButtonPressed]}>
-                <Ionicons color={SkopColors.ink} name="wallet-outline" size={23} />
-                <Text style={styles.checkInText}>SPENDING CHECK-IN</Text>
-              </Pressable>
-            )}
-
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Open urge distraction game"
@@ -167,6 +157,16 @@ export default function HomeScreen() {
                 <Text style={styles.statNote}>{formatLastSession(lastSessionAt)}</Text>
               </View>
             </View>
+
+            {quitPlan?.status === 'reducing' && checkInDue && (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => router.push('/check-in')}
+                style={({ pressed }) => [styles.checkInButton, pressed && styles.urgeButtonPressed]}>
+                <Ionicons color={SkopColors.ink} name="wallet-outline" size={23} />
+                <Text style={styles.checkInText}>SPENDING CHECK-IN</Text>
+              </Pressable>
+            )}
           </View>
         </ScrollView>
 
@@ -316,10 +316,10 @@ const styles = StyleSheet.create({
   },
   checkInButton: {
     minHeight: 52,
-    marginBottom: 18,
+    marginTop: 24,
     borderWidth: 2,
     borderColor: SkopColors.ink,
-    borderRadius: 8,
+    borderRadius: 20,
     backgroundColor: SkopColors.green,
     flexDirection: 'row',
     alignItems: 'center',

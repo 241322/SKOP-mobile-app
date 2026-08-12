@@ -124,8 +124,8 @@ function RootNavigator() {
 
       {/* these screens are only needed while signed out */}
       <Stack.Protected guard={!user}>
-        <Stack.Screen name="login" />
         <Stack.Screen name="signup" />
+        <Stack.Screen name="login" />
       </Stack.Protected>
     </Stack>
   );

@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Brand } from '@/components/skop/Brand';
+import { SkopDatePicker } from '@/components/skop/SkopDatePicker';
 import { SkopButton } from '@/components/skop/SkopButton';
 import { SkopColors, SkopFonts, skopShadow } from '@/constants/skop-theme';
 import {
@@ -180,7 +181,7 @@ export default function OnboardingScreen() {
                         : 'Choose today or a date ahead.'
                   }
                 />
-                <DateFields value={dateValue} onChange={setDateValue} />
+                <DateFields journey={journey} value={dateValue} onChange={setDateValue} />
               </>
             )}
             {step === 4 && (
@@ -348,7 +349,15 @@ function SegmentedOptions<T extends string>({
   );
 }
 
-function DateFields({ onChange, value }: { onChange: (value: string) => void; value: string }) {
+function DateFields({
+  journey,
+  onChange,
+  value,
+}: {
+  journey: QuitJourney;
+  onChange: (value: string) => void;
+  value: string;
+}) {
   const [yearValue, monthValue, dayValue] = value.split('-');
   const update = (part: 'day' | 'month' | 'year', next: string) => {
     const day = part === 'day' ? next : dayValue;
@@ -356,12 +365,28 @@ function DateFields({ onChange, value }: { onChange: (value: string) => void; va
     const year = part === 'year' ? next : yearValue;
     onChange(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
   };
+  const todayValue = dateToInputValue(new Date());
+  const minimumDate =
+    journey === 'already_quit'
+      ? '1900-01-01'
+      : journey === 'cut_down'
+        ? dateToInputValue(addDays(new Date(), 1))
+        : todayValue;
+  const maximumDate = journey === 'already_quit' ? todayValue : undefined;
 
   return (
-    <View style={styles.dateRow}>
-      <DateInput label="DAY" maxLength={2} value={String(Number(dayValue))} onChange={(next) => update('day', next)} />
-      <DateInput label="MONTH" maxLength={2} value={String(Number(monthValue))} onChange={(next) => update('month', next)} />
-      <DateInput label="YEAR" maxLength={4} value={yearValue} onChange={(next) => update('year', next)} wide />
+    <View style={styles.datePickerBlock}>
+      <View style={styles.dateRow}>
+        <DateInput label="DAY" maxLength={2} value={String(Number(dayValue))} onChange={(next) => update('day', next)} />
+        <DateInput label="MONTH" maxLength={2} value={String(Number(monthValue))} onChange={(next) => update('month', next)} />
+        <DateInput label="YEAR" maxLength={4} value={yearValue} onChange={(next) => update('year', next)} wide />
+      </View>
+      <SkopDatePicker
+        maximumDate={maximumDate}
+        minimumDate={minimumDate}
+        onChange={onChange}
+        value={value}
+      />
     </View>
   );
 }
@@ -474,6 +499,7 @@ const styles = StyleSheet.create({
   choiceCopy: { flex: 1, minWidth: 0 },
   choiceTitle: { color: SkopColors.ink, fontFamily: SkopFonts.bold, fontSize: 17 },
   choiceBody: { color: SkopColors.ink, fontFamily: SkopFonts.body, fontSize: 14, marginTop: 2 },
+  datePickerBlock: { gap: 18 },
   dateRow: { flexDirection: 'row', gap: 12 },
   dateField: { flex: 1, gap: 6 },
   yearField: { flex: 1.25 },

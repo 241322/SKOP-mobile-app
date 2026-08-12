@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { SkopButton } from '@/components/skop/SkopButton';
+import { SkopDatePicker } from '@/components/skop/SkopDatePicker';
 import { SkopColors, SkopFonts, skopShadow } from '@/constants/skop-theme';
 import { useAuth } from '@/context/auth';
 import { useSkopSession } from '@/context/skop-session';
@@ -145,7 +146,7 @@ export default function SettingsScreen() {
     router.replace('/');
   };
 
-  // firebase clears the saved user and the route guard opens login
+  // firebase clears the saved user and the route guard opens signup
   const handleLogout = async () => {
     setLogoutError('');
     setLoggingOut(true);
@@ -442,6 +443,16 @@ export default function SettingsScreen() {
                   style={styles.planInput}
                   value={editDate}
                 />
+                <SkopDatePicker
+                  maximumDate={editJourney === 'already_quit' ? dateToInputValue(startOfToday()) : undefined}
+                  minimumDate={
+                    editJourney === 'already_quit'
+                      ? '1900-01-01'
+                      : dateToInputValue(addDays(startOfToday(), editJourney === 'cut_down' ? 1 : 0))
+                  }
+                  onChange={setEditDate}
+                  value={editDate}
+                />
                 <ChoiceField
                   label="USUAL SPEND PERIOD"
                   onChange={setEditSpendPeriod}
@@ -556,6 +567,17 @@ function parseDateOnly(value: string) {
 function startOfToday() {
   const today = new Date();
   return new Date(today.getFullYear(), today.getMonth(), today.getDate());
+}
+
+function addDays(date: Date, days: number) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+}
+
+function dateToInputValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function ChoiceField<T extends string>({

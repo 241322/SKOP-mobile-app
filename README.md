@@ -1,4 +1,4 @@
-# SKOP: Kick the Urge
+
 
 <p align="center">
   <img src="assets/images/SKOP-WordLogo-withSloganExpanded.svg" alt="SKOP, kick the urge" width="1200" />

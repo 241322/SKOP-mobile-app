@@ -14,6 +14,20 @@ export const SkopColors = {
   muted: 'rgba(33, 23, 18, 0.55)',
 };
 
+// keeps the expo starter helpers working with the skop colour system
+export const Colors = {
+  light: {
+    text: SkopColors.ink,
+    background: SkopColors.background,
+    icon: SkopColors.ink,
+  },
+  dark: {
+    text: SkopColors.ink,
+    background: SkopColors.background,
+    icon: SkopColors.ink,
+  },
+};
+
 // gives each font role one name
 export const SkopFonts = {
   body: 'BricolageGrotesque_400Regular',

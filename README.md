@@ -1,5 +1,9 @@
 # SKOP: Kick the Urge
 
+<p align="center">
+  <img src="assets/images/SKOP-WordLogo-withSlogan-NoBackground.svg" alt="SKOP, kick the urge" width="420" />
+</p>
+
 SKOP is a cross-platform mobile app that supports people who want to stop smoking cigarettes, stop vaping, or reduce their nicotine use before a target quit date. It combines progress tracking, spending check-ins, support guidance, and a swipe-controlled distraction game called Breakout.
 
 The name **SKOP** comes from the Afrikaans word for "kick". The project uses a neobrutalist visual system and was designed for phone and tablet layouts in portrait and landscape.
@@ -152,6 +156,10 @@ firestore.rules      Firestore access and validation rules
 - **Assessment:** Theme 3 Summative Assessment, Final Mobile Application
 - **Institution:** Open Window
 - **Submission:** 19 August 2026
+
+## Brand credit
+
+The SKOP wordmark uses [Droog](https://fonts.adobe.com/fonts/droog), designed by Rian Hughes and published by Device Fonts through Adobe Fonts. The letterforms are stored as vector paths inside the logo artwork. The Droog font files are not bundled with the app.
 
 ## Repository
 

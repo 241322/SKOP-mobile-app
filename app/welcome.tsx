@@ -109,20 +109,34 @@ export default function WelcomeScreen() {
 
   return (
     <View style={styles.screen}>
-      {step === 1 ? (
-        <Image
-          accessibilityLabel=""
-          contentFit="cover"
-          source={require('@/assets/images/Welcome.svg')}
-          style={styles.welcomeBackground}
-        />
-      ) : null}
       <SafeAreaView style={styles.safeArea}>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.topRow}>
-          <Text style={styles.wordmark}>SKOP - kick the urge</Text>
-          <Text style={styles.stepText}>{step} OF 4</Text>
+        <View
+          accessibilityLabel={`Step ${step} of 4`}
+          accessibilityRole="progressbar"
+          style={styles.stepIndicator}>
+          {[1, 2, 3, 4].map((item) => (
+            <View
+              key={item}
+              style={[
+                styles.stepDot,
+                item < step && styles.completedStepDot,
+                item === step && styles.currentStepDot,
+              ]}
+            />
+          ))}
         </View>
+
+        {step === 1 ? (
+          <View style={styles.welcomeMarkWrap}>
+            <Image
+              accessibilityLabel="SKOP logo"
+              contentFit="contain"
+              source={require('@/assets/images/SKOP-WordLogo-withSlogan-NoBackground.svg')}
+              style={styles.welcomeMark}
+            />
+          </View>
+        ) : null}
 
         <View style={styles.form}>
           {step === 2 && (
@@ -326,7 +340,13 @@ function DateField({ label, maxLength, value, onChange }: {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: SkopColors.background },
   safeArea: { flex: 1, backgroundColor: 'transparent' },
-  welcomeBackground: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
+  welcomeMarkWrap: {
+    flex: 1,
+    minHeight: 240,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  welcomeMark: { width: '88%', maxWidth: 520, aspectRatio: 644 / 282 },
   content: {
     flexGrow: 1,
     width: '100%',
@@ -337,9 +357,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 32,
   },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  wordmark: { color: SkopColors.ink, fontFamily: SkopFonts.bold, fontSize: 18 },
-  stepText: { color: SkopColors.ink, fontFamily: SkopFonts.bold, fontSize: 14 },
+  stepIndicator: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    minHeight: 28,
+  },
+  stepDot: {
+    width: 42,
+    height: 10,
+    borderWidth: 2,
+    borderColor: SkopColors.ink,
+    borderRadius: 4,
+    backgroundColor: SkopColors.surface,
+  },
+  completedStepDot: { backgroundColor: SkopColors.green },
+  currentStepDot: { backgroundColor: SkopColors.yellow },
   form: { width: '100%', maxWidth: 600, alignSelf: 'center', gap: 24 },
   headingBlock: { alignItems: 'center', gap: 12 },
   guardianHeading: { width: '100%', alignItems: 'flex-start' },

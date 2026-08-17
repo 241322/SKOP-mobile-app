@@ -33,16 +33,12 @@ export function AppHeader({ title }: AppHeaderProps) {
         start={{ x: 0, y: 0 }}
         style={styles.chromeOverlay}
       />
-      {/* stacks the logo over its shadow image */}
+      {/* keeps the small brand mark clear beside the screen title */}
       <View style={[styles.logoWrap, compact && styles.compactLogoWrap]}>
         <Image
-          source={require('../../assets/figma/home-logo-shadow.png')}
-          style={[styles.logoShadow, compact && styles.compactLogoShadow]}
-        />
-        <Image
-          source={require('../../assets/figma/home-logo.png')}
+          source={require('../../assets/images/Favicon-NoBackground.png')}
           style={[styles.logo, compact && styles.compactLogo]}
-          contentFit="cover"
+          contentFit="contain"
         />
       </View>
       {/* keeps the screen title and settings action together */}
@@ -139,28 +135,13 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
   },
-  logoShadow: {
-    position: 'absolute',
+  logo: {
     width: 80,
     height: 80,
-    opacity: 0.2,
-  },
-  compactLogoShadow: {
-    width: 56,
-    height: 56,
-  },
-  logo: {
-    position: 'absolute',
-    left: 3,
-    top: 3,
-    width: 74,
-    height: 74,
   },
   compactLogo: {
-    left: 2,
-    top: 2,
-    width: 52,
-    height: 52,
+    width: 56,
+    height: 56,
   },
   settingsButton: {
     width: 44,

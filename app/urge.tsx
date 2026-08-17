@@ -679,7 +679,7 @@ export default function UrgeGameScreen() {
   return (
     // safeareaview stops landscape content touching the screen cutout and side controls
     <SafeAreaView style={styles.screen} edges={["left", "right"]}>
-      <StatusBar hidden />
+      <StatusBar backgroundColor={SkopColors.background} style="dark" translucent />
       <View style={styles.shell}>
         <View style={[styles.header, compactGame && styles.compactHeader]}>
           <View
@@ -689,16 +689,9 @@ export default function UrgeGameScreen() {
               style={[styles.logoWrap, compactGame && styles.compactLogoWrap]}
             >
               <Image
-                source={require("../assets/figma/game-logo-shadow.png")}
-                style={[
-                  styles.logoShadow,
-                  compactGame && styles.compactLogoShadow,
-                ]}
-              />
-              <Image
-                source={require("../assets/figma/game-logo.png")}
+                source={require("../assets/images/Favicon-NoBackground.png")}
                 style={[styles.logo, compactGame && styles.compactLogo]}
-                contentFit="cover"
+                contentFit="contain"
               />
             </View>
             <View>
@@ -1027,10 +1020,8 @@ const styles = StyleSheet.create({
   compactBrandBlock: { gap: 8, minWidth: 180 },
   logoWrap: { width: 46, height: 46 },
   compactLogoWrap: { width: 36, height: 36 },
-  logoShadow: { position: "absolute", width: 46, height: 46, opacity: 0.2 },
-  compactLogoShadow: { width: 36, height: 36 },
-  logo: { position: "absolute", left: 2, top: 2, width: 42, height: 42 },
-  compactLogo: { left: 1, top: 1, width: 34, height: 34 },
+  logo: { width: 46, height: 46 },
+  compactLogo: { width: 36, height: 36 },
   title: {
     color: SkopColors.ink,
     fontFamily: SkopFonts.bold,

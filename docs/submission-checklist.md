@@ -2,19 +2,19 @@
 
 ## Repository
 
-- [ ] Repository is public when opened in a signed-out browser.
-- [ ] `tsungai@openwindow.co.za` is an accepted collaborator.
-- [ ] All submission work is committed and pushed to `main`.
-- [ ] `git status` is clean.
-- [ ] README links and screenshots work on GitHub.
+- [x] Repository is public when opened in a signed-out browser.
+- [x] `tsungai@openwindow.co.za` is an accepted collaborator.
+- [x] All submission-readiness work is committed and pushed to `main`.
+- [x] `git status` is clean after the submission-readiness commit.
+- [x] README and screenshot URLs return successfully from GitHub.
 
 ## Fresh clone
 
-- [ ] Clone the public repository into a new folder.
-- [ ] Run `npm install` without using files from the working copy.
-- [ ] Run `npm run expo` and open the app in Expo Go.
-- [ ] Run `npm run web` and open `http://localhost:8081`.
-- [ ] Confirm no `.env` file or local Firebase file is required.
+- [x] Clone the public repository into a new folder.
+- [x] Run `npm ci` without using files from the working copy.
+- [ ] Run `npm run expo` and open the app in Expo Go on a phone.
+- [x] Run `npm run web` and start `http://localhost:8081`.
+- [x] Confirm no `.env` file or local Firebase file is required.
 
 ## Firebase
 
@@ -31,11 +31,11 @@
 
 ## Automated checks
 
-- [ ] `npm test`
-- [ ] `npm run lint`
-- [ ] `npx tsc --noEmit`
-- [ ] Expo web export
-- [ ] Expo Android export
+- [x] `npm test`
+- [x] `npm run lint`
+- [x] `npx tsc --noEmit`
+- [x] Expo web export
+- [x] Expo Android export
 
 ## Demonstration video
 

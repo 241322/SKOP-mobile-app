@@ -1,7 +1,7 @@
 # SKOP: Kick the Urge
 
 <p align="center">
-  <img src="assets/images/SKOP-WordLogo-withSlogan.svg" alt="SKOP, kick the urge" width="420" />
+  <img src="assets/images/SKOP-WordLogo-withSloganExpanded.svg" alt="SKOP, kick the urge" width="420" />
 </p>
 
 SKOP is a cross-platform mobile app that supports people who want to stop smoking cigarettes, stop vaping, or reduce their nicotine use before a target quit date. It combines progress tracking, spending check-ins, support guidance, and a swipe-controlled distraction game called Breakout.

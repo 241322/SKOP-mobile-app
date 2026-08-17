@@ -35,11 +35,17 @@ Nicotine urges do not last the same amount of time for every person. Many quit a
 - Session insights, recent sessions, time totals, and urge guidance
 - Responsive phone and tablet layouts in portrait and landscape
 
-## Screenshots
+## App mockups
 
-| Welcome | Breakout |
+The final submission will show four mockups covering the main SKOP flow.
+
+| Welcome and onboarding | Home dashboard |
 | --- | --- |
-| <img src="docs/screenshots/welcome.png" alt="SKOP welcome screen" width="260" /> | <img src="docs/screenshots/breakout.png" alt="SKOP Breakout game in landscape" width="520" /> |
+| <img src="docs/screenshots/welcome.png" alt="SKOP welcome and onboarding mockup" width="320" /> | Home dashboard mockup to be added |
+
+| Insights | Breakout game |
+| --- | --- |
+| Insights mockup to be added | <img src="docs/screenshots/breakout.png" alt="SKOP Breakout game mockup" width="520" /> |
 
 ## Tech stack
 

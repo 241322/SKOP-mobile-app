@@ -17,15 +17,32 @@ const weekDays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 export function SkopDatePicker({ maximumDate, minimumDate, onChange, value }: SkopDatePickerProps) {
   const selectedDate = parseDate(value) ?? startOfToday();
   const [open, setOpen] = useState(false);
+  const [showYears, setShowYears] = useState(false);
   const [visibleMonth, setVisibleMonth] = useState(
     new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1)
   );
+  const [yearPageStart, setYearPageStart] = useState(getYearPageStart(selectedDate.getFullYear()));
   const calendarDays = useMemo(() => getCalendarDays(visibleMonth), [visibleMonth]);
+  const years = useMemo(
+    () => Array.from({ length: 12 }, (_, index) => yearPageStart + index),
+    [yearPageStart]
+  );
+  const minimumYear = parseDate(minimumDate ?? '')?.getFullYear() ?? 1900;
+  const maximumYear = parseDate(maximumDate ?? '')?.getFullYear() ?? 2100;
 
   const openCalendar = () => {
     const current = parseDate(value) ?? startOfToday();
     setVisibleMonth(new Date(current.getFullYear(), current.getMonth(), 1));
+    setYearPageStart(getYearPageStart(current.getFullYear()));
+    setShowYears(false);
     setOpen(true);
+    void Haptics.selectionAsync();
+  };
+
+  const chooseYear = (year: number) => {
+    if (year < minimumYear || year > maximumYear) return;
+    setVisibleMonth(new Date(year, visibleMonth.getMonth(), 1));
+    setShowYears(false);
     void Haptics.selectionAsync();
   };
 
@@ -68,56 +85,106 @@ export function SkopDatePicker({ maximumDate, minimumDate, onChange, value }: Sk
             <ScrollView contentContainerStyle={styles.calendarContent} showsVerticalScrollIndicator={false}>
               <View style={styles.monthHeader}>
                 <Pressable
-                  accessibilityLabel="Previous month"
-                  onPress={() => setVisibleMonth(addMonths(visibleMonth, -1))}
+                  accessibilityLabel={showYears ? 'Previous years' : 'Previous month'}
+                  onPress={() => {
+                    if (showYears) setYearPageStart((current) => current - 12);
+                    else setVisibleMonth(addMonths(visibleMonth, -1));
+                  }}
                   style={({ pressed }) => [styles.monthButton, pressed && styles.buttonPressed]}>
                   <Ionicons color={SkopColors.ink} name="chevron-back" size={24} />
                 </Pressable>
-                <Text style={styles.monthTitle}>
-                  {visibleMonth.toLocaleDateString('en-ZA', { month: 'long', year: 'numeric' }).toUpperCase()}
-                </Text>
                 <Pressable
-                  accessibilityLabel="Next month"
-                  onPress={() => setVisibleMonth(addMonths(visibleMonth, 1))}
+                  accessibilityLabel={showYears ? 'Return to calendar' : 'Choose a year'}
+                  onPress={() => {
+                    setYearPageStart(getYearPageStart(visibleMonth.getFullYear()));
+                    setShowYears((current) => !current);
+                    void Haptics.selectionAsync();
+                  }}
+                  style={({ pressed }) => [styles.monthTitleButton, pressed && styles.titlePressed]}>
+                  <Text adjustsFontSizeToFit numberOfLines={1} style={styles.monthTitle}>
+                    {showYears
+                      ? `${yearPageStart} - ${yearPageStart + 11}`
+                      : visibleMonth
+                          .toLocaleDateString('en-ZA', { month: 'long', year: 'numeric' })
+                          .toUpperCase()}
+                  </Text>
+                  <Ionicons
+                    color={SkopColors.ink}
+                    name={showYears ? 'chevron-up' : 'chevron-down'}
+                    size={18}
+                  />
+                </Pressable>
+                <Pressable
+                  accessibilityLabel={showYears ? 'Next years' : 'Next month'}
+                  onPress={() => {
+                    if (showYears) setYearPageStart((current) => current + 12);
+                    else setVisibleMonth(addMonths(visibleMonth, 1));
+                  }}
                   style={({ pressed }) => [styles.monthButton, pressed && styles.buttonPressed]}>
                   <Ionicons color={SkopColors.ink} name="chevron-forward" size={24} />
                 </Pressable>
               </View>
 
-              <View style={styles.weekRow}>
-                {weekDays.map((day, index) => (
-                  <Text key={`${day}-${index}`} style={styles.weekDay}>{day}</Text>
-                ))}
-              </View>
-
-              <View style={styles.daysGrid}>
-                {calendarDays.map((date, index) => {
-                  if (!date) return <View key={`empty-${index}`} style={styles.daySlot} />;
-                  const dateValue = formatDate(date);
-                  const selected = dateValue === value;
-                  const disabled = isOutsideRange(date, minimumDate, maximumDate);
-                  return (
-                    <View key={dateValue} style={styles.daySlot}>
+              {showYears ? (
+                <View style={styles.yearGrid}>
+                  {years.map((year) => {
+                    const selected = year === visibleMonth.getFullYear();
+                    const disabled = year < minimumYear || year > maximumYear;
+                    return (
                       <Pressable
-                        accessibilityLabel={date.toLocaleDateString('en-ZA', {
-                          day: 'numeric',
-                          month: 'long',
-                          year: 'numeric',
-                        })}
+                        accessibilityLabel={`Choose ${year}`}
                         disabled={disabled}
-                        onPress={() => chooseDate(date)}
+                        key={year}
+                        onPress={() => chooseYear(year)}
                         style={({ pressed }) => [
-                          styles.dayButton,
-                          selected && styles.selectedDay,
+                          styles.yearButton,
+                          selected && styles.selectedYear,
                           disabled && styles.disabledDay,
                           pressed && !disabled && styles.dayPressed,
                         ]}>
-                        <Text style={[styles.dayText, selected && styles.selectedDayText]}>{date.getDate()}</Text>
+                        <Text style={[styles.yearText, selected && styles.selectedDayText]}>{year}</Text>
                       </Pressable>
-                    </View>
-                  );
-                })}
-              </View>
+                    );
+                  })}
+                </View>
+              ) : (
+                <>
+                  <View style={styles.weekRow}>
+                    {weekDays.map((day, index) => (
+                      <Text key={`${day}-${index}`} style={styles.weekDay}>{day}</Text>
+                    ))}
+                  </View>
+
+                  <View style={styles.daysGrid}>
+                    {calendarDays.map((date, index) => {
+                      if (!date) return <View key={`empty-${index}`} style={styles.daySlot} />;
+                      const dateValue = formatDate(date);
+                      const selected = dateValue === value;
+                      const disabled = isOutsideRange(date, minimumDate, maximumDate);
+                      return (
+                        <View key={dateValue} style={styles.daySlot}>
+                          <Pressable
+                            accessibilityLabel={date.toLocaleDateString('en-ZA', {
+                              day: 'numeric',
+                              month: 'long',
+                              year: 'numeric',
+                            })}
+                            disabled={disabled}
+                            onPress={() => chooseDate(date)}
+                            style={({ pressed }) => [
+                              styles.dayButton,
+                              selected && styles.selectedDay,
+                              disabled && styles.disabledDay,
+                              pressed && !disabled && styles.dayPressed,
+                            ]}>
+                            <Text style={[styles.dayText, selected && styles.selectedDayText]}>{date.getDate()}</Text>
+                          </Pressable>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </>
+              )}
             </ScrollView>
           </View>
         </View>
@@ -145,6 +212,10 @@ function isOutsideRange(date: Date, minimumDate?: string, maximumDate?: string) 
 
 function addMonths(date: Date, amount: number) {
   return new Date(date.getFullYear(), date.getMonth() + amount, 1);
+}
+
+function getYearPageStart(year: number) {
+  return Math.floor(year / 12) * 12;
 }
 
 function parseDate(value: string) {
@@ -243,7 +314,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     boxShadow: `0px 3px 0px 0px ${SkopColors.shadow}`,
   },
-  monthTitle: { flex: 1, color: SkopColors.ink, fontFamily: SkopFonts.bold, fontSize: 17, textAlign: 'center' },
+  monthTitleButton: {
+    flex: 1,
+    minHeight: 42,
+    paddingHorizontal: 8,
+    borderWidth: 2,
+    borderColor: SkopColors.ink,
+    borderRadius: 8,
+    backgroundColor: SkopColors.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+  },
+  titlePressed: { backgroundColor: SkopColors.yellow },
+  monthTitle: { color: SkopColors.ink, fontFamily: SkopFonts.bold, fontSize: 16, textAlign: 'center' },
   weekRow: { marginTop: 18, flexDirection: 'row' },
   weekDay: {
     width: '14.2857%',
@@ -268,4 +353,21 @@ const styles = StyleSheet.create({
   dayPressed: { backgroundColor: SkopColors.yellow },
   dayText: { color: SkopColors.ink, fontFamily: SkopFonts.bold, fontSize: 14 },
   selectedDayText: { color: SkopColors.surface },
+  yearGrid: { marginTop: 18, flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  yearButton: {
+    width: '30%',
+    flexGrow: 1,
+    height: 54,
+    borderWidth: 2,
+    borderColor: SkopColors.ink,
+    borderRadius: 8,
+    backgroundColor: SkopColors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectedYear: {
+    backgroundColor: SkopColors.pink,
+    boxShadow: `0px 3px 0px 0px ${SkopColors.shadow}`,
+  },
+  yearText: { color: SkopColors.ink, fontFamily: SkopFonts.bold, fontSize: 17 },
 });

@@ -13,6 +13,13 @@ import {
 
 import { useAuth } from '@/context/auth';
 import {
+  calculateExpectedBaselineCents,
+  calculateMoneySaved,
+  calculateStreak,
+  dateToInputValue,
+  getCompletedPeriod,
+} from '@/lib/skop-domain';
+import {
   type CheckInCadence,
   type LegacyQuitPlan,
   loadFirestoreCheckIns,
@@ -294,15 +301,6 @@ export function SkopSessionProvider({ children }: { children: ReactNode }) {
     };
   }, [emailVerified, syncCloudData, user]);
 
-  // changing a reminder preference replaces the one local schedule on this phone
-  useEffect(() => {
-    if (!quitPlan) {
-      void clearCheckInReminder();
-      return;
-    }
-    void applyCheckInReminder(quitPlan);
-  }, [quitPlan]);
-
   const persistPlan = useCallback(
     async (plan: QuitPlan) => {
       if (!user) return;
@@ -322,6 +320,27 @@ export function SkopSessionProvider({ children }: { children: ReactNode }) {
     },
     [setCachedProfile, user]
   );
+
+  // a denied permission switches the saved plan back to manual check-ins
+  useEffect(() => {
+    if (!quitPlan) {
+      void clearCheckInReminder();
+      return;
+    }
+    if (!quitPlan.remindersEnabled) {
+      void clearCheckInReminder();
+      return;
+    }
+
+    let active = true;
+    void applyCheckInReminder(quitPlan).then((scheduled) => {
+      if (!active || scheduled) return;
+      void persistPlan({ ...quitPlan, remindersEnabled: false, reminderTime: null });
+    });
+    return () => {
+      active = false;
+    };
+  }, [persistPlan, quitPlan]);
 
   const streakData = useMemo(
     () => calculateStreak(quitPlan?.status === 'quit' ? quitPlan.quitDate : null),
@@ -384,6 +403,12 @@ export function SkopSessionProvider({ children }: { children: ReactNode }) {
           remindersEnabled: false,
           reminderTime: null,
           ageConfirmedAt,
+          ageGroup: '18_plus',
+          guardianConsentAt: null,
+          guardianConsentVersion: null,
+          guardianPinHash: null,
+          guardianPinSalt: null,
+          guardianRelationship: null,
         });
       },
       updateQuitPlan: persistPlan,
@@ -497,7 +522,22 @@ function parseProfile(value: string | null): LoadedProfile | null {
   if (!value) return null;
   try {
     const parsed = JSON.parse(value) as Record<string, unknown>;
-    if (parsed.profileVersion === 2) return parsed as QuitPlan;
+    if (parsed.profileVersion === 2) {
+      return {
+        ...(parsed as QuitPlan),
+        ageGroup:
+          parsed.ageGroup === '13_17' || parsed.ageGroup === '18_plus'
+            ? parsed.ageGroup
+            : '18_plus',
+        guardianConsentAt:
+          typeof parsed.guardianConsentAt === 'string' ? parsed.guardianConsentAt : null,
+        guardianConsentVersion: parsed.guardianConsentVersion === 1 ? 1 : null,
+        guardianPinHash: typeof parsed.guardianPinHash === 'string' ? parsed.guardianPinHash : null,
+        guardianPinSalt: typeof parsed.guardianPinSalt === 'string' ? parsed.guardianPinSalt : null,
+        guardianRelationship:
+          typeof parsed.guardianRelationship === 'string' ? parsed.guardianRelationship : null,
+      };
+    }
     if (
       typeof parsed.quitDate === 'string' &&
       typeof parsed.spendPeriod === 'string' &&
@@ -557,108 +597,4 @@ function sortCheckIns(records: SpendCheckIn[]) {
     (first, second) =>
       new Date(second.periodEnd).getTime() - new Date(first.periodEnd).getTime()
   );
-}
-
-function calculateMoneySaved(plan: QuitPlan | null, daysSmokeFree: number) {
-  if (!plan || plan.status !== 'quit') return 0;
-  return Math.floor(toDailySpend(plan) * daysSmokeFree);
-}
-
-function calculateExpectedBaselineCents(plan: QuitPlan, dayCount: number) {
-  return Math.round(toDailySpend(plan) * dayCount * 100);
-}
-
-function toDailySpend(plan: Pick<QuitPlan, 'spendPeriod' | 'spendAmount'>) {
-  return plan.spendPeriod === 'daily'
-    ? plan.spendAmount
-    : plan.spendPeriod === 'weekly'
-      ? plan.spendAmount / 7
-      : (plan.spendAmount * 12) / 365.25;
-}
-
-function getCompletedPeriod(cadence: CheckInCadence) {
-  const today = startOfDay(new Date());
-  let start: Date;
-  let end: Date;
-
-  if (cadence === 'daily') {
-    start = addDays(today, -1);
-    end = start;
-  } else if (cadence === 'weekly') {
-    const mondayOffset = (today.getDay() + 6) % 7;
-    const thisMonday = addDays(today, -mondayOffset);
-    start = addDays(thisMonday, -7);
-    end = addDays(thisMonday, -1);
-  } else {
-    start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-    end = new Date(today.getFullYear(), today.getMonth(), 0);
-  }
-
-  const startValue = dateToInputValue(start);
-  const endValue = dateToInputValue(end);
-  return {
-    id: `spend-${cadence}-${startValue}-${endValue}`,
-    start: startValue,
-    end: endValue,
-    dayCount: Math.round((end.getTime() - start.getTime()) / 86400000) + 1,
-  };
-}
-
-function calculateStreak(quitDate?: string | null) {
-  if (!quitDate) {
-    return { streak: { years: 0, months: 0, days: 0 }, totalDays: 0 };
-  }
-
-  const start = inputValueToDate(quitDate);
-  const today = startOfDay(new Date());
-  const totalDays = Math.max(0, Math.floor((today.getTime() - start.getTime()) / 86400000));
-  let years = today.getFullYear() - start.getFullYear();
-  if (addYearsClamped(start, years) > today) years -= 1;
-  const afterYears = addYearsClamped(start, years);
-  let months = 0;
-  while (addMonthsClamped(afterYears, months + 1) <= today) months += 1;
-  const afterMonths = addMonthsClamped(afterYears, months);
-  const days = Math.floor((today.getTime() - afterMonths.getTime()) / 86400000);
-
-  return {
-    streak: { years: Math.max(0, years), months, days },
-    totalDays,
-  };
-}
-
-function addYearsClamped(date: Date, years: number) {
-  const year = date.getFullYear() + years;
-  const month = date.getMonth();
-  const day = Math.min(date.getDate(), daysInMonth(year, month));
-  return new Date(year, month, day);
-}
-
-function addMonthsClamped(date: Date, months: number) {
-  const first = new Date(date.getFullYear(), date.getMonth() + months, 1);
-  const day = Math.min(date.getDate(), daysInMonth(first.getFullYear(), first.getMonth()));
-  return new Date(first.getFullYear(), first.getMonth(), day);
-}
-
-function daysInMonth(year: number, month: number) {
-  return new Date(year, month + 1, 0).getDate();
-}
-
-function inputValueToDate(value: string) {
-  const [year, month, day] = value.split('-').map(Number);
-  return new Date(year, month - 1, day);
-}
-
-function startOfDay(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
-function addDays(date: Date, days: number) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
-}
-
-function dateToInputValue(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
 }

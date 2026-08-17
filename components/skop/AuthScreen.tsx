@@ -19,6 +19,7 @@ import { Brand } from '@/components/skop/Brand';
 import { SkopButton } from '@/components/skop/SkopButton';
 import { SkopColors, SkopFonts } from '@/constants/skop-theme';
 import { useAuth } from '@/context/auth';
+import { usePreAccount } from '@/context/pre-account';
 import { getAuthErrorMessage } from '@/lib/auth-error';
 
 type AuthScreenProps = {
@@ -29,12 +30,13 @@ export function AuthScreen({ mode }: AuthScreenProps) {
   // changes the fields and labels for each auth route
   const isSignup = mode === 'signup';
   const { logIn, signUp } = useAuth();
+  const preAccount = usePreAccount();
+  const { readyForSignup } = preAccount;
 
   // these values update as the user types into each field
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmedPassword, setConfirmedPassword] = useState('');
-  const [ageConfirmed, setAgeConfirmed] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -64,8 +66,8 @@ export function AuthScreen({ mode }: AuthScreenProps) {
       return;
     }
 
-    if (isSignup && !ageConfirmed) {
-      setErrorMessage('Confirm that you are 18 or older.');
+    if (isSignup && !readyForSignup) {
+      router.replace('/welcome');
       return;
     }
 
@@ -87,6 +89,15 @@ export function AuthScreen({ mode }: AuthScreenProps) {
 
   return (
     <SafeAreaView style={styles.screen}>
+      {isSignup && (
+        <Pressable
+          accessibilityLabel="Go back to date of birth"
+          hitSlop={10}
+          onPress={() => router.replace('/welcome?step=3')}
+          style={({ pressed }) => [styles.backButton, pressed && styles.backButtonPressed]}>
+          <Ionicons color={SkopColors.ink} name="arrow-back" size={30} />
+        </Pressable>
+      )}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardArea}>
@@ -131,33 +142,17 @@ export function AuthScreen({ mode }: AuthScreenProps) {
               />
               {/* signup needs the password entered twice */}
               {isSignup && (
-                <>
-                  <Field
-                    autoComplete="new-password"
-                    editable={!submitting}
-                    label="CONFIRM PASSWORD"
-                    onChangeText={setConfirmedPassword}
-                    onSubmitEditing={submit}
-                    placeholder="Re-enter password here..."
-                    secure
-                    textContentType="newPassword"
-                    value={confirmedPassword}
-                  />
-                  {/* skop's quit guidance is written for adults */}
-                  <Pressable
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: ageConfirmed }}
-                    disabled={submitting}
-                    onPress={() => setAgeConfirmed((current) => !current)}
-                    style={styles.ageRow}>
-                    <View style={[styles.checkbox, ageConfirmed && styles.checkboxChecked]}>
-                      {ageConfirmed && (
-                        <Ionicons name="checkmark" size={18} color={SkopColors.surface} />
-                      )}
-                    </View>
-                    <Text style={styles.ageText}>I confirm that I am 18 or older</Text>
-                  </Pressable>
-                </>
+                <Field
+                  autoComplete="new-password"
+                  editable={!submitting}
+                  label="CONFIRM PASSWORD"
+                  onChangeText={setConfirmedPassword}
+                  onSubmitEditing={submit}
+                  placeholder="Re-enter password here..."
+                  secure
+                  textContentType="newPassword"
+                  value={confirmedPassword}
+                />
               )}
             </View>
 
@@ -179,7 +174,7 @@ export function AuthScreen({ mode }: AuthScreenProps) {
                 disabled={submitting}
                 label={isSignup ? 'Switch to LOGIN' : 'Switch to SIGN-UP'}
                 small
-                onPress={() => router.replace(isSignup ? '/login' : '/signup')}
+                onPress={() => router.replace(isSignup ? '/login' : readyForSignup ? '/signup' : '/welcome')}
               />
             </View>
           </View>
@@ -257,6 +252,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: SkopColors.background,
   },
+  backButton: {
+    position: 'absolute',
+    top: 33,
+    left: 24,
+    zIndex: 2,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backButtonPressed: { transform: [{ translateY: 3 }] },
   keyboardArea: {
     flex: 1,
   },
@@ -333,30 +339,5 @@ const styles = StyleSheet.create({
   actions: {
     gap: 20,
     height: 142,
-  },
-  ageRow: {
-    minHeight: 44,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  checkbox: {
-    width: 26,
-    height: 26,
-    borderWidth: 2,
-    borderColor: SkopColors.ink,
-    borderRadius: 4,
-    backgroundColor: SkopColors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxChecked: {
-    backgroundColor: SkopColors.green,
-  },
-  ageText: {
-    flex: 1,
-    color: SkopColors.ink,
-    fontFamily: SkopFonts.medium,
-    fontSize: 15,
   },
 });

@@ -26,6 +26,12 @@ service cloud.firestore {
           'remindersEnabled',
           'reminderTime',
           'ageConfirmedAt',
+          'ageGroup',
+          'guardianConsentAt',
+          'guardianConsentVersion',
+          'guardianPinHash',
+          'guardianPinSalt',
+          'guardianRelationship',
           'schemaVersion',
           'createdAt',
           'updatedAt'
@@ -43,6 +49,12 @@ service cloud.firestore {
           'remindersEnabled',
           'reminderTime',
           'ageConfirmedAt',
+          'ageGroup',
+          'guardianConsentAt',
+          'guardianConsentVersion',
+          'guardianPinHash',
+          'guardianPinSalt',
+          'guardianRelationship',
           'schemaVersion',
           'createdAt',
           'updatedAt'
@@ -74,6 +86,23 @@ service cloud.firestore {
             && data.checkInCadence != null
             && data.reminderTime != null))
         && data.ageConfirmedAt is string
+        && data.ageGroup in ['13_17', '18_plus']
+        && ((data.ageGroup == '18_plus'
+            && data.guardianConsentAt == null
+            && data.guardianConsentVersion == null
+            && data.guardianPinHash == null
+            && data.guardianPinSalt == null
+            && data.guardianRelationship == null)
+          || (data.ageGroup == '13_17'
+            && data.guardianConsentAt is string
+            && data.guardianConsentVersion == 1
+            && data.guardianPinHash is string
+            && data.guardianPinHash.matches('^[a-f0-9]{64}$')
+            && data.guardianPinSalt is string
+            && data.guardianPinSalt.matches('^[a-f0-9]{32}$')
+            && data.guardianRelationship is string
+            && data.guardianRelationship.size() >= 2
+            && data.guardianRelationship.size() <= 80))
         && data.schemaVersion == 2
         && data.createdAt is timestamp
         && data.updatedAt is timestamp;

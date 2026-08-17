@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore';
 
 import { db } from '@/FirebaseConfig';
+import type { AgeGroup } from '@/lib/skop-domain';
 
 export type SpendPeriod = 'daily' | 'weekly' | 'monthly';
 export type ProductType = 'cigarettes' | 'vaping' | 'both';
@@ -36,6 +37,12 @@ export type QuitPlan = {
   remindersEnabled: boolean;
   reminderTime: ReminderTime | null;
   ageConfirmedAt: string;
+  ageGroup: AgeGroup;
+  guardianConsentAt: string | null;
+  guardianConsentVersion: number | null;
+  guardianPinHash: string | null;
+  guardianPinSalt: string | null;
+  guardianRelationship: string | null;
 };
 
 export type LegacyQuitPlan = {
@@ -80,6 +87,12 @@ type FirestoreProfile = {
   remindersEnabled?: boolean;
   reminderTime?: ReminderTime | null;
   ageConfirmedAt?: string;
+  ageGroup?: AgeGroup;
+  guardianConsentAt?: string | null;
+  guardianConsentVersion?: number | null;
+  guardianPinHash?: string | null;
+  guardianPinSalt?: string | null;
+  guardianRelationship?: string | null;
 };
 
 type FirestoreSession = {
@@ -123,6 +136,12 @@ export async function saveFirestoreProfile(userId: string, plan: QuitPlan) {
     remindersEnabled: plan.remindersEnabled,
     reminderTime: plan.reminderTime,
     ageConfirmedAt: plan.ageConfirmedAt,
+    ageGroup: plan.ageGroup,
+    guardianConsentAt: plan.guardianConsentAt,
+    guardianConsentVersion: plan.guardianConsentVersion,
+    guardianPinHash: plan.guardianPinHash,
+    guardianPinSalt: plan.guardianPinSalt,
+    guardianRelationship: plan.guardianRelationship,
     schemaVersion: 2,
     updatedAt: serverTimestamp(),
   };
@@ -152,10 +171,17 @@ export async function loadFirestoreProfile(userId: string): Promise<LoadedProfil
     (data.targetQuitDate === null || isDateValue(data.targetQuitDate)) &&
     includes(spendPeriods, data.spendPeriod) &&
     Number.isInteger(data.spendAmountCents) &&
+    data.spendAmountCents! > 0 &&
     (data.checkInCadence === null || includes(cadences, data.checkInCadence)) &&
     typeof data.remindersEnabled === 'boolean' &&
     (data.reminderTime === null || includes(reminderTimes, data.reminderTime)) &&
-    typeof data.ageConfirmedAt === 'string'
+    typeof data.ageConfirmedAt === 'string' &&
+    (data.ageGroup === undefined || data.ageGroup === '13_17' || data.ageGroup === '18_plus') &&
+    (data.guardianConsentAt === undefined || data.guardianConsentAt === null || typeof data.guardianConsentAt === 'string') &&
+    (data.guardianConsentVersion === undefined || data.guardianConsentVersion === null || data.guardianConsentVersion === 1) &&
+    (data.guardianPinHash === undefined || data.guardianPinHash === null || typeof data.guardianPinHash === 'string') &&
+    (data.guardianPinSalt === undefined || data.guardianPinSalt === null || typeof data.guardianPinSalt === 'string') &&
+    (data.guardianRelationship === undefined || data.guardianRelationship === null || typeof data.guardianRelationship === 'string')
   ) {
     return {
       profileVersion: 2,
@@ -170,13 +196,20 @@ export async function loadFirestoreProfile(userId: string): Promise<LoadedProfil
       remindersEnabled: data.remindersEnabled,
       reminderTime: data.reminderTime,
       ageConfirmedAt: data.ageConfirmedAt,
+      ageGroup: data.ageGroup ?? '18_plus',
+      guardianConsentAt: data.guardianConsentAt ?? null,
+      guardianConsentVersion: data.guardianConsentVersion ?? null,
+      guardianPinHash: data.guardianPinHash ?? null,
+      guardianPinSalt: data.guardianPinSalt ?? null,
+      guardianRelationship: data.guardianRelationship ?? null,
     };
   }
 
   if (
     isDateValue(data.quitDate) &&
     includes(spendPeriods, data.spendPeriod) &&
-    Number.isInteger(data.spendAmountCents)
+    Number.isInteger(data.spendAmountCents) &&
+    data.spendAmountCents! > 0
   ) {
     return {
       profileVersion: 1,

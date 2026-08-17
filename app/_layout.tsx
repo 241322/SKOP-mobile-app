@@ -20,6 +20,7 @@ import { SkopColors } from '@/constants/skop-theme';
 import { AuthProvider, useAuth } from '@/context/auth';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { SkopSessionProvider, useSkopSession } from '@/context/skop-session';
+import { PreAccountProvider, usePreAccount } from '@/context/pre-account';
 
 // keeps the splash screen open while the fonts load
 SplashScreen.preventAutoHideAsync();
@@ -58,22 +59,25 @@ export default function RootLayout() {
   if (!fontsLoaded) return null;
 
   return (
-    <AuthProvider>
-      {/* shares the streak and game score with every screen */}
-      <SkopSessionProvider>
-        <ThemeProvider value={navigationTheme}>
-          <RootNavigator />
-          <StatusBar backgroundColor={SkopColors.background} style="dark" translucent />
-        </ThemeProvider>
-      </SkopSessionProvider>
-    </AuthProvider>
+    <PreAccountProvider>
+      <AuthProvider>
+        {/* shares the streak and game score with every screen */}
+        <SkopSessionProvider>
+          <ThemeProvider value={navigationTheme}>
+            <RootNavigator />
+            <StatusBar backgroundColor={SkopColors.background} style="dark" translucent />
+          </ThemeProvider>
+        </SkopSessionProvider>
+      </AuthProvider>
+    </PreAccountProvider>
   );
 }
 
 function RootNavigator() {
   const { emailVerified, loading, user } = useAuth();
   const { legacyPlan, profileLoading, quitPlan } = useSkopSession();
-  const appLoading = loading || profileLoading;
+  const { loading: preAccountLoading, readyForSignup } = usePreAccount();
+  const appLoading = loading || profileLoading || preAccountLoading;
 
   // keeps the splash screen up while firebase and the quit plan load
   useEffect(() => {
@@ -100,7 +104,6 @@ function RootNavigator() {
       {/* the main app needs both a firebase user and a quit plan */}
       <Stack.Protected guard={Boolean(user && emailVerified && quitPlan)}>
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="urge" options={{ animation: 'fade' }} />
         <Stack.Screen name="check-in" options={{ animation: 'fade' }} />
         {/* fade avoids moving the live blurred header during this transition */}
         <Stack.Screen name="settings" options={{ animation: 'fade' }} />
@@ -124,9 +127,17 @@ function RootNavigator() {
 
       {/* these screens are only needed while signed out */}
       <Stack.Protected guard={!user}>
-        <Stack.Screen name="signup" />
+        <Stack.Screen name="welcome" />
+        <Stack.Screen name="youth-support" />
         <Stack.Screen name="login" />
+        <Stack.Protected guard={readyForSignup}>
+          <Stack.Screen name="signup" />
+        </Stack.Protected>
       </Stack.Protected>
+
+      {/* breakout can distract users without requiring an account or saving a session */}
+      <Stack.Screen name="urge" options={{ animation: 'fade' }} />
+      <Stack.Screen name="legal" options={{ animation: 'fade' }} />
     </Stack>
   );
 }

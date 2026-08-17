@@ -17,6 +17,7 @@ import { Brand } from '@/components/skop/Brand';
 import { SkopDatePicker } from '@/components/skop/SkopDatePicker';
 import { SkopButton } from '@/components/skop/SkopButton';
 import { SkopColors, SkopFonts, skopShadow } from '@/constants/skop-theme';
+import { usePreAccount } from '@/context/pre-account';
 import {
   type CheckInCadence,
   type ProductType,
@@ -25,6 +26,13 @@ import {
   type SpendPeriod,
   useSkopSession,
 } from '@/context/skop-session';
+import {
+  addDays,
+  dateToInputValue,
+  inputValueToDate,
+  startOfDay,
+  validateJourneyDate,
+} from '@/lib/skop-domain';
 
 const products: { label: string; body: string; value: ProductType }[] = [
   { label: 'CIGARETTES', body: 'Support for stopping smoking.', value: 'cigarettes' },
@@ -49,9 +57,11 @@ const cadences: { label: string; value: CheckInCadence }[] = [
 
 export default function OnboardingScreen() {
   const { completeOnboarding } = useSkopSession();
+  const preAccount = usePreAccount();
+  const firstStep = preAccount.productType ? 2 : 1;
   const today = new Date();
-  const [step, setStep] = useState(1);
-  const [productType, setProductType] = useState<ProductType>('vaping');
+  const [step, setStep] = useState(firstStep);
+  const [productType, setProductType] = useState<ProductType>(preAccount.productType ?? 'vaping');
   const [journey, setJourney] = useState<QuitJourney>('already_quit');
   const [dateValue, setDateValue] = useState(dateToInputValue(today));
   const [spendPeriod, setSpendPeriod] = useState<SpendPeriod>('daily');
@@ -62,6 +72,8 @@ export default function OnboardingScreen() {
   const [errorMessage, setErrorMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const totalSteps = journey === 'cut_down' ? 5 : 4;
+  const visibleStep = preAccount.productType ? step - 1 : step;
+  const visibleTotalSteps = preAccount.productType ? totalSteps - 1 : totalSteps;
 
   const date = useMemo(() => inputValueToDate(dateValue), [dateValue]);
 
@@ -122,7 +134,14 @@ export default function OnboardingScreen() {
         remindersEnabled: journey === 'cut_down' ? remindersEnabled : false,
         reminderTime: journey === 'cut_down' && remindersEnabled ? reminderTime : null,
         ageConfirmedAt: new Date().toISOString(),
+        ageGroup: preAccount.ageGroup ?? '18_plus',
+        guardianConsentAt: preAccount.guardianConsentAt,
+        guardianConsentVersion: preAccount.guardianConsentVersion,
+        guardianPinHash: preAccount.guardianPinHash,
+        guardianPinSalt: preAccount.guardianPinSalt,
+        guardianRelationship: preAccount.guardianRelationship,
       });
+      await preAccount.clearPreAccount();
     } catch {
       setErrorMessage('Your setup could not be saved. Please try again.');
       setSaving(false);
@@ -139,9 +158,9 @@ export default function OnboardingScreen() {
           <View style={styles.topRow}>
             <Brand compact />
             <View style={styles.stepBlock}>
-              <Text style={styles.stepText}>{step} OF {totalSteps}</Text>
+              <Text style={styles.stepText}>{visibleStep} OF {visibleTotalSteps}</Text>
               <View style={styles.progressRail}>
-                <View style={[styles.progressFill, { width: `${(step / totalSteps) * 100}%` }]} />
+                <View style={[styles.progressFill, { width: `${(visibleStep / visibleTotalSteps) * 100}%` }]} />
               </View>
             </View>
           </View>
@@ -251,7 +270,7 @@ export default function OnboardingScreen() {
           </View>
 
           <View style={styles.actions}>
-            {step > 1 && <SkopButton disabled={saving} label="BACK" onPress={() => setStep((current) => current - 1)} />}
+            {step > firstStep && <SkopButton disabled={saving} label="BACK" onPress={() => setStep((current) => current - 1)} />}
             <SkopButton
               disabled={saving}
               label={saving ? 'SAVING...' : step === totalSteps ? 'START SKOP' : 'CONTINUE'}
@@ -420,40 +439,6 @@ function DateInput({
       </View>
     </View>
   );
-}
-
-function validateJourneyDate(journey: QuitJourney, date: Date) {
-  if (Number.isNaN(date.getTime()) || date.getFullYear() < 1900) return 'Enter a valid date.';
-  const today = startOfDay(new Date());
-  const selected = startOfDay(date);
-  if (journey === 'already_quit' && selected > today) return 'Choose today or a date in the past.';
-  if (journey === 'cut_down' && selected <= today) return 'Choose a target date after today.';
-  if (journey === 'ready_to_quit' && selected < today) return 'Choose today or a date ahead.';
-  return '';
-}
-
-function inputValueToDate(value: string) {
-  const [year, month, day] = value.split('-').map(Number);
-  const date = new Date(year, month - 1, day);
-  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
-    return new Date(Number.NaN);
-  }
-  return date;
-}
-
-function startOfDay(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
-function addDays(date: Date, days: number) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
-}
-
-function dateToInputValue(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
 }
 
 const styles = StyleSheet.create({

@@ -286,15 +286,16 @@ export default function InsightsScreen() {
                 </View>
               ))}
               <Text style={styles.supportText}>
-                Cravings often pass within a few minutes. A doctor or pharmacist can also help with
-                nicotine replacement or stop-smoking medicine.
+                {quitPlan?.ageGroup === '13_17'
+                  ? 'Cravings often pass within a few minutes. Speak to a parent, guardian, doctor, pharmacist or another adult you trust for more support.'
+                  : 'Cravings often pass within a few minutes. A doctor or pharmacist can also help with nicotine replacement or stop-smoking medicine.'}
               </Text>
               <Text style={styles.sourceText}>
                 Guidance reviewed from HSE, NHS, CDC, Mayo Clinic, Smokefree.gov, and CANSA.
               </Text>
               <Pressable
                 accessibilityRole="link"
-                onPress={() => void Linking.openURL(getPrimarySource(quitPlan?.productType))}
+                onPress={() => void Linking.openURL(getPrimarySource(quitPlan?.productType, quitPlan?.ageGroup))}
                 style={styles.sourceButton}>
                 <Text style={styles.sourceButtonText}>OPEN REVIEWED SOURCE</Text>
                 <Ionicons color={SkopColors.ink} name="open-outline" size={18} />
@@ -397,7 +398,11 @@ function getUrgeHelp(productType?: 'cigarettes' | 'vaping' | 'both') {
   );
 }
 
-function getPrimarySource(productType?: 'cigarettes' | 'vaping' | 'both') {
+function getPrimarySource(
+  productType?: 'cigarettes' | 'vaping' | 'both',
+  ageGroup?: 'under_13' | '13_17' | '18_plus',
+) {
+  if (ageGroup === '13_17') return 'https://www.cdc.gov/tobacco/e-cigarettes/youth-quitting.html';
   if (productType === 'vaping') return 'https://smokefree.gov/quit-smoking/ecigs-menthol-dip/quit-vaping';
   if (productType === 'both') return 'https://www.cdc.gov/tobacco/campaign/tips/quit-smoking/index.html';
   return 'https://www2.hse.ie/living-well/quit-smoking/get-help-to-quit/cravings-withdrawal/';

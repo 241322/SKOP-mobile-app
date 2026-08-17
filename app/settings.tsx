@@ -93,8 +93,8 @@ export default function SettingsScreen() {
       setPlanError('Enter the date as YYYY-MM-DD.');
       return;
     }
-    if (!Number.isFinite(amount) || amount < 0) {
-      setPlanError('Enter a spend amount of R0 or more.');
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setPlanError('Enter a spend amount above R0.');
       return;
     }
     if (editJourney === 'already_quit' && selectedDate > today) {
@@ -277,6 +277,15 @@ export default function SettingsScreen() {
           </View>
         )}
         <SkopButton compact label="CHANGE QUIT APPROACH" onPress={openPlanEditor} variant="yellow" />
+      </View>
+
+      <View style={styles.content}>
+        <Text style={styles.sectionTitle}>DATA & PRIVACY</Text>
+        <Text style={styles.noticePreview}>
+          See what SKOP stores, how Firebase is involved, how to delete your data, and the limits of
+          the SKOP health guidance.
+        </Text>
+        <SkopButton compact label="READ DATA & HEALTH NOTICE" onPress={() => router.push('/legal')} />
       </View>
     </View>
   );
@@ -668,6 +677,7 @@ const styles = StyleSheet.create({
     width: 'auto',
   },
   sectionTitle: { color: SkopColors.ink, fontFamily: SkopFonts.bold, fontSize: 20, marginBottom: 6 },
+  noticePreview: { color: SkopColors.ink, fontFamily: SkopFonts.body, fontSize: 15, lineHeight: 21 },
   row: {
     height: 58,
     borderWidth: 2,

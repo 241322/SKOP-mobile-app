@@ -165,7 +165,7 @@ firestore.rules      Firestore access and validation rules
 
 ## Brand credit
 
-The SKOP wordmark uses [Droog](https://fonts.adobe.com/fonts/droog), designed by Rian Hughes and published by Device Fonts through Adobe Fonts. The letterforms are stored as vector paths inside the logo artwork. The Droog font files are not bundled with the app.
+The SKOP wordmark uses <a href="https://fonts.adobe.com/fonts/droog" target="_blank" rel="noopener noreferrer">Droog</a>, designed by Rian Hughes and published by Device Fonts through Adobe Fonts. The letterforms are stored as vector paths inside the logo artwork. The Droog font files are not bundled with the app.
 
 ## Repository
 

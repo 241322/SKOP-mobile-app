@@ -1,12 +1,30 @@
-# SKOP - Quit smoking Mobile Application
+# SKOP | Kick the Urge
 
 <p align="center">
   <img src="assets/images/SKOP-WordLogo-withSloganExpanded.svg" alt="SKOP, kick the urge" width="1200" />
 </p>
 
-SKOP is a cross-platform mobile app that supports people who want to stop smoking cigarettes, stop vaping, or reduce their nicotine use before a target quit date. It combines progress tracking, spending check-ins, support guidance, and a swipe-controlled distraction game called Breakout.
+SKOP is a cross-platform nicotine support app for people who want to stop smoking, stop vaping, or reduce before a target quit date. It combines a quit plan, progress and spending tracking, support guidance, and a swipe-controlled distraction game called Breakout.
 
-The name **SKOP** comes from the Afrikaans word for "kick". The project uses a neobrutalist visual system and was designed for phone and tablet layouts in portrait and landscape.
+The name **SKOP** comes from the Afrikaans word for "kick". The app supports phone and tablet layouts in portrait and landscape.
+
+## Contents
+
+- [Why SKOP](#why-skop)
+- [Inspiration cards](#inspiration-cards)
+- [Core features](#core-features)
+- [App mockups](#app-mockups)
+- [How the app works](#how-the-app-works)
+- [Tech stack](#tech-stack)
+- [Run the project](#run-the-project)
+- [Tests and checks](#tests-and-checks)
+- [Known limitations](#known-limitations)
+- [Future roadmap](#future-roadmap)
+- [Demonstration video](#demonstration-video)
+
+## Why SKOP
+
+Nicotine urges do not last the same amount of time for every person. Many quit apps centre on a cold-turkey streak, which can leave out people who want to reduce first. SKOP supports three paths: already quit, ready to quit, and cut down first. Breakout remains available in each path as a distraction when the user needs it.
 
 ## Inspiration cards
 
@@ -15,10 +33,6 @@ This project started from three inspiration cards:
 - **Habit Builder:** reinterpreted as helping a person break a nicotine habit and build a quit plan.
 - **Timer/Clock:** used for streaks, target-date countdowns, game time, and session records.
 - **Landscape Support:** used across the app and made part of Breakout, which is played in landscape.
-
-## Problem statement
-
-Nicotine urges do not last the same amount of time for every person. Many quit apps focus on a cold-turkey streak and provide little support for people who want to reduce first. SKOP supports three paths: already quit, ready to quit, and cut down first. The game remains available during each path as a distraction when the user needs it.
 
 ## Core features
 
@@ -46,6 +60,15 @@ The final submission will show four mockups covering the main SKOP flow.
 | Insights | Breakout game |
 | --- | --- |
 | Insights mockup to be added | <img src="docs/screenshots/breakout.png" alt="SKOP Breakout game mockup" width="520" /> |
+
+## How the app works
+
+1. The user creates and verifies an account.
+2. Onboarding records age support needs, nicotine product, quit approach, target or quit date, and a spending baseline.
+3. The home screen shows a streak or target countdown, spending progress, and SKOP sessions.
+4. A user can open Breakout during an urge and guide the marker through a generated route in landscape.
+5. The insights screen summarises sessions, time in SKOP, recent activity, and support guidance.
+6. Firestore stores account data while AsyncStorage supports local caching and later sync.
 
 ## Tech stack
 
@@ -100,6 +123,13 @@ npm run web
 
 Expo opens the web app at `http://localhost:8081`.
 
+### Troubleshooting
+
+- If Expo reports stale files or an old asset, stop Metro and run `npm run expo:clear`.
+- If Expo returns `TypeError: fetch failed`, confirm that `https://api.expo.dev` opens on the development computer, then restart the terminal and Metro.
+- The computer and phone must be on the same network when using Expo Go over LAN.
+- Expo Go may print a remote-notification warning on Android. SKOP uses local reminders, but full notification testing belongs in a development build.
+
 ## Firebase behaviour
 
 - Accounts use email and password authentication.
@@ -134,6 +164,29 @@ The Jest suite covers journey date rules, age groups, spending calculations, com
 - iOS runtime behaviour still needs testing on Apple hardware.
 - Guardian consent is a guardian self-attestation flow. It does not verify government identity or replace legal review.
 - Guidance in SKOP is educational and does not replace support from a doctor or pharmacist.
+
+## Future roadmap
+
+### Product ideas
+
+- Add a choice of short distraction games so users can pick the activity that holds their attention.
+- Add breathing, grounding, and timed focus activities alongside Breakout.
+- Add more check-in views for long-term spending patterns without treating missing check-ins as zero spend.
+- Add opt-in milestones that support progress without punishing a reset or missed check-in.
+- Expand cigarette, vaping, and combined guidance with review from healthcare and cessation professionals.
+- Add Afrikaans and other South African language options.
+- Add accessibility settings for text size, contrast, reduced motion, haptics, and game speed.
+- Add encrypted data export and account portability tools.
+
+### Cost-dependent work
+
+- Release and test native iOS builds when Apple hardware and an Apple Developer membership are available.
+- Use development builds for notification and store-release testing outside Expo Go.
+- Add SMS sign-in or multi-factor authentication when Firebase phone authentication and SMS costs can be supported.
+- Move guardian approval and sensitive account actions to verified backend workflows when paid Cloud Functions and a consent verification service are available.
+- Add crash reporting and product analytics once a privacy review and service budget are in place.
+
+These items are plans, not current app features.
 
 ## Demonstration video
 

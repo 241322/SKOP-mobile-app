@@ -190,9 +190,8 @@ These items are plans, not current app features.
 
 ## Demonstration video
 
-**Google Drive link:** To be added before submission.
+**Google Drive link:** <a href="https://drive.google.com/drive/folders/1UdhAVl4E9IVHsXVWEz2zs6hKrmolM5Fb?usp=sharing" target="_blank"> Click Me </a>
 
-The final link must be shared as **Anyone with the link can view**.
 
 ## Project structure
 

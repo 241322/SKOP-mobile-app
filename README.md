@@ -51,15 +51,27 @@ This project started from three inspiration cards:
 
 ## App mockups
 
-The final submission will show four mockups covering the main SKOP flow.
+<p align="center">
+  <img src="Mockups/LandingScreen.jpg" alt="SKOP landing screen mockup" width="100%" />
+</p>
 
-| Welcome and onboarding | Home dashboard |
-| --- | --- |
-| <img src="docs/screenshots/welcome.png" alt="SKOP welcome and onboarding mockup" width="320" /> | Home dashboard mockup to be added |
+<br />
 
-| Insights | Breakout game |
-| --- | --- |
-| Insights mockup to be added | <img src="docs/screenshots/breakout.png" alt="SKOP Breakout game mockup" width="520" /> |
+<p align="center">
+  <img src="Mockups/GameScreens.jpg" alt="SKOP Breakout game mockup" width="100%" />
+</p>
+
+<br />
+
+<p align="center">
+  <img src="Mockups/MainScreens.jpg" alt="SKOP home and insights screen mockups" width="100%" />
+</p>
+
+<br />
+
+<p align="center">
+  <img src="Mockups/OnboardingScreens.jpg" alt="SKOP onboarding screen mockups" width="100%" />
+</p>
 
 ## How the app works
 

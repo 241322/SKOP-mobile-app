@@ -52,25 +52,25 @@ This project started from three inspiration cards:
 ## App mockups
 
 <p align="center">
-  <img src="Mockups/LandingScreen.jpg" alt="SKOP landing screen mockup" />
+  <img src="Mockups/LandingScreen.png" alt="SKOP landing screen mockup" />
 </p>
 
 <br />
 
 <p align="center">
-  <img src="Mockups/GameScreens.jpg" alt="SKOP Breakout game mockup" />
+  <img src="Mockups/GameScreens.png" alt="SKOP Breakout game mockup" />
 </p>
 
 <br />
 
 <p align="center">
-  <img src="Mockups/MainScreens.jpg" alt="SKOP home and insights screen mockups" />
+  <img src="Mockups/MainScreens.png" alt="SKOP home and insights screen mockups" />
 </p>
 
 <br />
 
 <p align="center">
-  <img src="Mockups/OnboardingScreens.jpg" alt="SKOP onboarding screen mockups" />
+  <img src="Mockups/OnboardingScreens.png" alt="SKOP onboarding screen mockups" />
 </p>
 
 ## How the app works
